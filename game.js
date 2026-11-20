@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const H = window.HR;
-  const VERSION = 'v0.8.6 베타';
+  const VERSION = 'v0.9 베타';
   const SAVE_KEY = 'hrk_save_v1';
   const fmt = H.fmt;
   const $ = (id) => document.getElementById(id);
@@ -145,7 +145,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   function batSVG(b, glow) {
     if (!BAT_ART) return batSVGRaw(b, glow);
     const g = H.GRADES[b.g];
-    return `<span class="bart${glow ? ' glow' : ''}${b.e >= 10 ? ' aura' : ''}" style="--gc:${g.color}"><img src="assets/bats/g${b.g}_${b.t}.webp" alt="" draggable="false">${b.e > 0 ? `<i>+${b.e}</i>` : ''}</span>`;
+    return `<span class="bart${glow ? ' glow' : ''}${b.e >= 10 ? ' aura' : ''}" style="--gc:${g.color}"><img src="assets/bats/${H.batKey(b)}.webp" alt="" draggable="false">${b.e > 0 ? `<i>+${b.e}</i>` : ''}</span>`;
   }
   function uiIcon(name, emoji) { return UI_ART ? `<img src="assets/ui/${name}.webp" alt="" draggable="false">` : emoji; }
   function preloadArt() {
@@ -807,7 +807,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   const HOLDAX = [{"k": [0.8173, 0.3467], "t": [0.9257, 0.0045], "w": 0.0794}, {"k": [0.9537, 0.4515], "t": [-0.0005, 0.4302], "w": 0.0786}, {"k": [0.6119, 0.485], "t": [0.997, 0.4733], "w": 0.0756}, {"k": [0.1469, 0.4044], "t": [0.9939, 0.5376], "w": 0.0897}];
   const HOLDC = {}, BATIMG = {};
   function batImg(b) {
-    const key = b.g + '_' + b.t;
+    const key = H.batKey(b);
     if (BATIMG[key]) return BATIMG[key].ready ? BATIMG[key] : null;
     const o = BATIMG[key] = { ready: false }, im = new Image();
     im.onload = () => {
@@ -816,15 +816,16 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       const col = (cx) => { let lo = -1, hi = -1; for (let y = 0; y < h; y++) if (d[(y * w + cx) * 4 + 3] > 90) { if (lo < 0) lo = y; hi = y; } return lo < 0 ? null : [lo, hi]; };
       let x0 = 0, x1 = w - 1; while (x0 < w - 1 && !col(x0)) x0++; while (x1 > 0 && !col(x1)) x1--;
       const L = x1 - x0, ca = col(Math.round(x0 + L * 0.04)) || [0, h], cb = col(Math.round(x0 + L * 0.96)) || [0, h], cm = col(Math.round(x0 + L * 0.85)) || [0, h];
-      Object.assign(o, { im, x0, x1, ky: (ca[0] + ca[1]) / 2, ty: (cb[0] + cb[1]) / 2, th: Math.max(8, cm[1] - cm[0]), ready: true });
+      const thf = { g5_power: 0.55 }[key]; // 불꽃처럼 몸통 밖 장식이 큰 방망이는 굵기를 따로 정한다
+      Object.assign(o, { im, x0, x1, ky: thf ? h * 0.64 : (ca[0] + ca[1]) / 2, ty: thf ? h * 0.64 : (cb[0] + cb[1]) / 2, th: thf ? h * thf : Math.max(8, cm[1] - cm[0]), ready: true });
       markDirty();
     };
-    im.src = 'assets/bats/g' + key + '.webp';
+    im.src = 'assets/bats/' + key + '.webp';
     return null;
   }
   function holdFrames(b) {
     const B = batImg(b); if (!B) return null;
-    const key = b.g + '_' + b.t; if (HOLDC[key]) return HOLDC[key];
+    const key = H.batKey(b); if (HOLDC[key]) return HOLDC[key];
     HOLDC[key] = ART.hold.map((im, fi) => {
       const A = HOLDAX[fi], fw = im.width, fh = im.height, px = Math.round(fw * 0.6), py = Math.round(fh * 0.2);
       const mk = () => { const c = document.createElement('canvas'); c.width = fw + px * 2; c.height = fh + py * 2; return c; };
@@ -1306,33 +1307,37 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     const rate = H.enhRate(b), cost = H.enhCost(b, st), max = b.e >= H.ENH_MAX;
     let h = `<div class="card"><div class="eq"><div class="bimg">${batSVG(b, b.e >= 10)}</div><div style="min-width:0">
       <div style="font-size:17px">${H.batName(b)} <span style="color:${g.color}">+${b.e}</span></div>
-      <div>${gradeTag(b.g)} <span class="small">${H.TRAITS[b.t].name}</span></div>
-      <div class="small">파워 x${fmt(H.batPower(b), 2)} · ${H.TRAITS[b.t].desc}</div></div></div>
+      <div>${gradeTag(b.g)}${b.sp ? ' <span class="grade" style="background:#e0457b">한정</span>' : ''} <span class="small">${H.traitName(b)}</span></div>
+      <div class="small">파워 x${fmt(H.batPower(b), 2)} · ${H.traitDesc(b)}</div></div></div>
       <div style="border-top:1px solid var(--line);margin:8px 0 4px"></div>
       ${max ? '<div class="enhRow">최대 강화 단계예요</div>' : `
       <div class="enhRow"><span>+${b.e} → <b style="color:${g.color}">+${b.e + 1}</b></span><span>성공률 <b style="color:${rate >= 70 ? '#4cd97b' : rate >= 40 ? '#ffd84a' : '#ff7a7a'}">${rate}%</b></span></div>
-      <div class="enhRow small"><span>파워 x${fmt(H.batPower(b), 2)} → x${fmt(H.batPower({ g: b.g, t: b.t, e: b.e + 1 }), 2)}</span><span>${H.failText(b.e)}</span></div>
+      <div class="enhRow small"><span>파워 x${fmt(H.batPower(b), 2)} → x${fmt(H.batPower({ g: b.g, t: b.t, t2: b.t2, e: b.e + 1 }), 2)}</span><span>${H.failText(b.e)}</span></div>
       ${b.e >= 10 ? `<label class="chk"><input type="checkbox" id="useTicket" ${st.useTicket !== false ? 'checked' : ''}> 보호권 사용 (보유 ${st.tickets}개, 파괴될 때만 소모)</label>` : ''}
       <button class="btn big" id="enhBtn" ${st.coins < cost ? 'disabled' : ''}>강화하기 · ₩ ${fmt(cost)}</button>`}
     </div>`;
     // 합성
     let mh = '';
-    for (let gi = 0; gi < 4; gi++) {
+    for (let gi = 0; gi < H.GRADES.length - 1; gi++) {
       const n = H.mergeCandidates(st, gi).length;
       if (n >= 1) mh += `<button class="btn sm ${n >= 3 ? 'blue' : 'gray'}" data-merge="${gi}" ${n >= 3 ? '' : 'disabled'} style="margin:3px">${H.GRADES[gi].name} 3개 → ${H.GRADES[gi + 1].name} (${n}/3)</button>`;
     }
     if (mh) h += `<div class="card"><div class="small" style="margin-bottom:4px">합성: 장착하지 않은 같은 등급 방망이 3개로 다음 등급 1개 (특성 랜덤, 강화 단계 낮은 것부터 사용)</div>${mh}</div>`;
     const list = st.bats.slice().sort((a, c) => (c.id === st.equip) - (a.id === st.equip) || H.batPower(c) - H.batPower(a));
-    h += `<div class="h">방망이 도감 <span class="r small">${H.dexCount(st)}/15 · 비거리 x${fmt(H.dexMult(st), 2)}${H.dexCount(st) >= 15 ? ' · 코인 x1.2' : ''}</span></div><div class="card"><div class="dex">`;
-    for (let g = 0; g < 5; g++) for (const tt of ['power', 'contact', 'luck']) { const got = (st.dex || {})[g + '_' + tt]; h += `<div class="dx ${got ? 'got' : ''}" title="${H.BAT_NAMES[g][tt]}">${batSVG({ g, t: tt, e: 0 })}</div>`; }
-    h += `</div><div class="small" style="margin-top:6px">한 등급의 3종을 모두 모으면 비거리 +5% (최대 +25%), 15종을 다 모으면 코인 +20%</div></div>`;
+    const dc = H.dexCoin(st);
+    h += `<div class="h">방망이 도감 <span class="r small">${H.dexCount(st)}/${H.DEX_TOTAL} · 비거리 x${fmt(H.dexMult(st), 2)}${dc > 1 ? ' · 코인 x' + fmt(dc, 1) : ''}</span></div><div class="card"><div class="dex">`;
+    for (let g = 0; g < H.GRADES.length; g++) for (const tt of ['power', 'contact', 'luck']) { const got = (st.dex || {})[g + '_' + tt]; h += `<div class="dx ${got ? 'got' : ''}" title="${H.BAT_NAMES[g][tt]}">${batSVG({ g, t: tt, e: 0 })}</div>`; }
+    h += `</div><div class="small" style="margin:8px 0 4px;color:#ff8ab5">한정 방망이 (합성·판매 불가, 특성 2개)</div><div class="dex">`;
+    for (const k of H.LIMITED_KEYS) { const L = H.LIMITED[k], got = (st.dex || {})['sp_' + k]; h += `<div class="dx ${got ? 'got' : ''}" title="${L.name}">${batSVG({ g: L.g, t: L.t, t2: L.t2, sp: k, e: 0 })}</div>`; }
+    h += `</div><div class="small" style="margin-top:4px">${H.LIMITED_KEYS.map((k) => ((st.dex || {})['sp_' + k] ? '✅ ' : '🔒 ') + H.LIMITED[k].name + ': ' + H.LIMITED[k].how).join('<br>')}</div>`;
+    h += `<div class="small" style="margin-top:6px">한 등급의 3종을 모두 모으면 비거리 +5% (최대 +30%). 전설까지 15종이면 코인 +20%, 신화까지 18종이면 +30%, 한정 3종을 다 모으면 +10% 더</div></div>`;
     h += `<div class="h">보유 방망이 <span class="r small">${st.bats.length}/${H.INV_MAX}</span></div><div class="inv">`;
     for (const x of list) {
       const on = x.id === st.equip, G2 = H.GRADES[x.g];
       const sp = Math.ceil(G2.sell * (1 + x.e * 0.5));
       h += `<div class="bc ${on ? 'on' : ''}"><div class="bimg">${batSVG(x)}</div><div class="nm" style="color:${G2.color}">${H.batName(x)} +${x.e}</div>
-      <div class="small">${G2.name} · ${H.TRAITS[x.t].short} · x${fmt(H.batPower(x), 2)}</div>
-      <div class="act">${on ? '<button class="btn sm gray" disabled>장착 중</button>' : `<button class="btn sm green" data-equip="${x.id}">장착</button><button class="btn sm red" data-sell="${x.id}">판매 ₩${fmt(sp)}</button>`}</div></div>`;
+      <div class="small">${G2.name} · ${x.sp ? H.traitName(x) : H.TRAITS[x.t].short} · x${fmt(H.batPower(x), 2)}</div>
+      <div class="act">${on ? '<button class="btn sm gray" disabled>장착 중</button>' : `<button class="btn sm green" data-equip="${x.id}">장착</button>${x.sp ? '<button class="btn sm gray" disabled>한정</button>' : `<button class="btn sm red" data-sell="${x.id}">판매 ₩${fmt(sp)}</button>`}`}</div></div>`;
     }
     h += '</div>';
     return h;
@@ -1478,7 +1483,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     if (t.id === 'shareBtn') return shareCard();
     if (t.id === 'expBtn') return exportModal();
     if (t.id === 'impBtn') return importModal();
-    if (d.att != null) { const r = H.claimAtt(st); if (r) { SFX.box(); vib(30); track('att_claim', { n: st.att.n }); rewardToast(r); } updateHUD(); return renderPanel(); }
+    if (d.att != null) { const r = H.claimAtt(st); if (r) { SFX.box(); vib(30); track('att_claim', { n: st.att.n }); rewardToast(r); if (r.bat) { track('limited', { sp: 'season' }); queueModal(() => revealModal(r.bat, '🎉 한정 방망이 획득!')); } } updateHUD(); return renderPanel(); }
     if (d.daily) { const r = H.claimDaily(st, d.daily); if (r) { SFX.up(); track('mission_claim', { id: d.daily }); rewardToast(r); } updateHUD(); return renderPanel(); }
     if (d.dall != null) { const r = H.claimDailyAll(st); if (r) { SFX.success(); confetti(); track('mission_all', {}); rewardToast(r); } updateHUD(); return renderPanel(); }
     if (d.ach) { const r = H.claimAch(st, d.ach); if (r) { SFX.success(); track('ach_claim', { id: d.ach }); rewardToast(r); } updateHUD(); return renderPanel(); }
@@ -1542,8 +1547,8 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   function revealModal(b, title) {
     const g = H.GRADES[b.g];
     const better = H.batPower(b) > H.batPower(H.equipped(st));
-    openModal(`<h2>${title}</h2><div class="bimg shake" id="rvImg" style="opacity:.3;filter:brightness(0)">${batSVG(b, b.g >= 3)}</div>
-      <div id="rvTxt" style="visibility:hidden"><div class="res" style="color:${g.color}">${g.name} 등급!</div><p>${H.batName(b)} · ${H.TRAITS[b.t].name}</p><p class="small">파워 x${fmt(H.batPower(b), 2)} · ${H.TRAITS[b.t].desc}</p>
+    openModal(`<h2>${title}</h2><div class="bimg shake" id="rvImg" style="opacity:.3;filter:brightness(0)">${batSVG(b, b.g >= 3 || !!b.sp)}</div>
+      <div id="rvTxt" style="visibility:hidden"><div class="res" style="color:${b.sp ? '#ff8ab5' : g.color}">${b.sp ? '한정 방망이!' : g.name + ' 등급!'}</div><p>${H.batName(b)} · ${H.traitName(b)}</p><p class="small">파워 x${fmt(H.batPower(b), 2)} · ${H.traitDesc(b)}</p>
       <div class="mbtns">${better ? `<button class="btn green" id="rvEq">바로 장착</button>` : ''}<button class="btn gray" data-close>확인</button></div></div>`);
     setTimeout(() => {
       const im = $('rvImg'); if (!im) return;
@@ -1609,7 +1614,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     openModal(`<h2>📅 출석 ${day + 1}일차</h2><p>매일 들어오면 7일 동안 보상이 커져요. 7일차엔 고급 상자!</p>
       <div class="attrow" style="margin:10px 0">${H.ATT.map((x, i) => `<div class="attd ${i < day ? 'got' : i === day ? 'now' : ''}"><b>${i + 1}일</b><span>${H.rewardText(x)}</span>${i < day ? '<i>✓</i>' : ''}</div>`).join('')}</div>
       <div class="mbtns"><button class="btn big" id="attGet">${H.rewardText(r)} 받기</button></div>`);
-    $('attGet').onclick = () => { const g = H.claimAtt(st); closeModal(); if (g) { SFX.box(); vib(30); track('att_claim', { n: st.att.n }); rewardToast(g); } updateHUD(); renderPanel(); };
+    $('attGet').onclick = () => { const g = H.claimAtt(st); closeModal(); if (g) { SFX.box(); vib(30); track('att_claim', { n: st.att.n }); rewardToast(g); if (g.bat) { track('limited', { sp: 'season' }); queueModal(() => revealModal(g.bat, '🎉 한정 방망이 획득!')); } } updateHUD(); renderPanel(); };
   }
 
   // ---------- 기록 공유 카드 ----------
@@ -1619,7 +1624,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     const x = c.getContext('2d');
     try { await document.fonts.load('80px Jua'); } catch (e) { /* noop */ }
     const b = H.equipped(st);
-    const [ka, em, bi] = await Promise.all([loadImgP('assets/ui/key_art.webp'), loadImgP('assets/ui/emblem.webp'), BAT_ART ? loadImgP('assets/bats/g' + b.g + '_' + b.t + '.webp') : null]);
+    const [ka, em, bi] = await Promise.all([loadImgP('assets/ui/key_art.webp'), loadImgP('assets/ui/emblem.webp'), BAT_ART ? loadImgP('assets/bats/' + H.batKey(b) + '.webp') : null]);
     const g0 = x.createLinearGradient(0, 0, 0, Hc); g0.addColorStop(0, '#123a6b'); g0.addColorStop(1, '#071629'); x.fillStyle = g0; x.fillRect(0, 0, Wc, Hc);
     if (ka) { const sc = Math.max(Wc / ka.width, Hc / ka.height); x.globalAlpha = 0.55; x.drawImage(ka, (Wc - ka.width * sc) / 2, (Hc - ka.height * sc) / 2, ka.width * sc, ka.height * sc); x.globalAlpha = 1; }
     const ov = x.createLinearGradient(0, 0, 0, Hc); ov.addColorStop(0, 'rgba(5,15,35,.75)'); ov.addColorStop(0.45, 'rgba(5,15,35,.35)'); ov.addColorStop(1, 'rgba(5,15,35,.92)'); x.fillStyle = ov; x.fillRect(0, 0, Wc, Hc);
@@ -1766,7 +1771,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     SFX.success(); if (D.hr >= 5) confetti();
     track('derby_end', { hr: D.hr, ranked: D.ranked ? 1 : 0 });
     openModal(`<h2>⚾ 홈런 더비 결과</h2><div class="res" style="color:#ffd84a">홈런 ${D.hr} / ${H.DERBY_N}</div><p>가장 멀리: ${H.fmtDist(D.best)}</p>
-      ${rew ? `<p>보상 ◆ ${rew.gems} · ₩ ${fmt(rew.coins)}</p>` : '<p class="small">연습 기록은 랭킹에 올라가지 않아요</p>'}
+      ${rew ? `<p>보상 ◆ ${rew.gems} · ₩ ${fmt(rew.coins)}</p>` : '<p class="small">연습 기록은 랭킹에 올라가지 않아요</p>'}${rew && !rew.bat && !H.hasLimited(st, 'derby') ? `<p class="small">랭킹 도전에서 ${H.DERBY_BAT_HR}개 이상 치면 한정 방망이!</p>` : ''}
       ${D.ranked ? `<input id="nickIn" maxlength="10" placeholder="랭킹 닉네임 (10자)" value="${esc(st.nick || '')}" style="width:100%;margin:8px 0;border-radius:10px;border:2px solid #3d74b3;background:#0a1d36;color:#fff;font-family:inherit;font-size:18px;text-align:center;padding:8px">` : ''}
       <div class="mbtns"><button class="btn gray" data-close>닫기</button>${D.ranked ? '<button class="btn" id="sendRank">랭킹 등록</button>' : '<button class="btn blue" id="seeRank">랭킹 보기</button>'}</div>`);
     const sr = $('sendRank');
@@ -1779,6 +1784,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       rankModal();
     };
     const sk = $('seeRank'); if (sk) sk.onclick = () => rankModal();
+    if (rew && rew.bat) { track('limited', { sp: 'derby' }); queueModal(() => revealModal(rew.bat, '🏆 한정 방망이 획득!')); }
     updateHUD(); markDirty();
   }
   function bossEndModal(win, i) {
@@ -1787,6 +1793,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       const r = H.winBoss(st, i); SFX.success(); confetti(); vib([40, 40, 40, 40, 120]);
       track('boss_win', { i, first: r.first ? 1 : 0 });
       openModal(`<h2>🏆 보스 격파!</h2><p>${B.name}을(를) 무너뜨렸어요!</p><div class="res" style="color:#ffd84a">◆ ${r.gems} · ₩ ${fmt(r.coins)}</div><p class="small">${r.first ? '첫 격파 보상!' : '다시 이기면 작은 보상을 받아요'}</p><div class="mbtns"><button class="btn big" data-close>좋아요</button></div>`);
+      if (r.bat) { track('limited', { sp: 'boss' }); queueModal(() => revealModal(r.bat, '🏆 한정 방망이 획득!')); }
     } else {
       SFX.fail(); track('boss_lose', { i });
       openModal(`<h2>패배...</h2><p>${B.name}에게 막혔어요. 능력치와 방망이를 키우고 다시 도전해요!</p><div class="mbtns"><button class="btn gray" data-close>닫기</button><button class="btn red" id="retryBoss">다시 도전</button></div>`);

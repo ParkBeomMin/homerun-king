@@ -8,6 +8,7 @@
     { id: 2, name: '희귀', mat: '카본', color: '#b98cff', dark: '#5b2fa8', base: 2.5, enhBase: 3000, sell: 1200 },
     { id: 3, name: '영웅', mat: '티타늄', color: '#ff9f55', dark: '#a8501a', base: 4.0, enhBase: 25000, sell: 9000 },
     { id: 4, name: '전설', mat: '전설', color: '#ffe066', dark: '#b38600', base: 6.5, enhBase: 200000, sell: 70000 },
+    { id: 5, name: '신화', mat: '신화', color: '#ff5ad1', dark: '#8a1d73', base: 10.5, enhBase: 1600000, sell: 550000 },
   ];
 
   const TRAITS = {
@@ -22,7 +23,27 @@
     { power: '카본 해머', contact: '카본 레이저', luck: '카본 클로버' },
     { power: '티타늄 버스터', contact: '티타늄 스나이퍼', luck: '티타늄 잭팟' },
     { power: '유성 배트', contact: '번개 깃털 배트', luck: '황금 왕관 배트' },
+    { power: '태양 폭발 배트', contact: '오로라 바늘 배트', luck: '무지개 용 배트' },
   ];
+  // 한정 방망이: 합성·판매 불가, 특성 2개. g는 기본 파워·강화 비용 기준 등급
+  const LIMITED = {
+    boss: { name: '보스 사냥꾼 배트', g: 4, t: 'power', t2: 'contact', how: '10구장 보스 첫 격파' },
+    derby: { name: '더비 챔피언 배트', g: 3, t: 'power', t2: 'luck', how: '홈런 더비 7개 이상 (랭킹 도전)' },
+    season: { name: '개막 시즌 배트', g: 2, t: 'contact', t2: 'luck', how: '개막 이벤트 기간 출석 3회 (12/4까지)' },
+  };
+  const LIMITED_KEYS = ['boss', 'derby', 'season'];
+  const SEASON_END = Date.UTC(2026, 11, 4, 15, 0, 0); // 2026-12-05 00:00 KST 전까지
+  function hasT(b, t) { return !!b && (b.t === t || b.t2 === t); }
+  function batKey(b) { return b.sp ? 'sp_' + b.sp : 'g' + b.g + '_' + b.t; }
+  function traitName(b) { return b.sp ? TRAITS[b.t].short + '+' + TRAITS[b.t2].short : TRAITS[b.t].name; }
+  function traitShort(b) { return b.sp ? '한정' : TRAITS[b.t].short; }
+  function traitDesc(b) { return b.sp ? TRAITS[b.t].desc + ', ' + TRAITS[b.t2].desc : TRAITS[b.t].desc; }
+  function hasLimited(st, sp) { return !!(st.dex || {})['sp_' + sp] || st.bats.some((b) => b.sp === sp); }
+  function grantLimited(st, sp) {
+    if (hasLimited(st, sp)) return null;
+    const L = LIMITED[sp], b = { id: Date.now().toString(36) + (_uid++).toString(36) + 'sp', g: L.g, t: L.t, t2: L.t2, sp, e: 0 };
+    st.bats.push(b); markDex(st, b); return b;
+  }
 
   // 강화 성공률 (현재 단계 -> 다음 단계)
   const ENH_RATE = [100, 95, 90, 85, 80, 75, 70, 65, 60, 55, 50, 45, 40, 35, 30, 25, 20, 15, 12, 10];
@@ -71,10 +92,10 @@
   function batPower(b) {
     const g = GRADES[b.g];
     let p = g.base * (1 + 0.1 * b.e + 0.01 * b.e * b.e);
-    if (b.t === 'power') p *= 1.2;
+    if (hasT(b, 'power')) p *= 1.2;
     return p;
   }
-  function batName(b) { return BAT_NAMES[b.g][b.t]; }
+  function batName(b) { return b.sp ? LIMITED[b.sp].name : BAT_NAMES[b.g][b.t]; }
   // 강화 비용: 등급 기본값 x 1.6^단계 x (6구장부터) 구장 코인 배율 x 명예 배율. 은퇴하면 구장 배율은 다시 낮아짐
   function enhCost(b, st) { return Math.ceil(GRADES[b.g].enhBase * Math.pow(1.6, b.e) * (st ? coinMultOf(Math.max(0, (st.maxStadium || 0) - 5)) * honorMult(st) : 1)); }
   function enhRate(b) { return b.e >= ENH_MAX ? 0 : ENH_RATE[b.e]; }
@@ -132,7 +153,7 @@
   function perfectWindow(st) {
     const b = equipped(st);
     let w = 0.05 + st.stats.contact * 0.0016;
-    if (b && b.t === 'contact') w *= 1.35;
+    if (hasT(b, 'contact')) w *= 1.35;
     return w;
   }
   function goodWindow(st) { return perfectWindow(st) + 0.08; }
@@ -140,7 +161,7 @@
 
   function autoPerfect(st) {
     const b = equipped(st);
-    return Math.min(0.75, autoPerfectBase(st.stats.contact) + (b && b.t === 'contact' ? 0.06 : 0));
+    return Math.min(0.75, autoPerfectBase(st.stats.contact) + (hasT(b, 'contact') ? 0.06 : 0));
   }
 
   function rollAutoQuality(st, rng) {
@@ -155,7 +176,7 @@
 
   function specialChance(st) {
     const b = equipped(st);
-    return 0.04 + (b && b.t === 'luck' ? 0.05 : 0);
+    return 0.04 + (hasT(b, 'luck') ? 0.05 : 0);
   }
 
   // 타격 결과 계산
@@ -172,7 +193,7 @@
     d = Math.max(3, d);
     const hr = quality !== 'weak' && d >= fenceOf(st);
     let coins = d * 0.25 * coinMultOf(st.stadium) * fameMult(st.stats.fame) * (hr ? 3 : 1);
-    if (b && b.t === 'luck') coins *= 1.15;
+    if (hasT(b, 'luck')) coins *= 1.15;
     if (manual) coins *= 1.2;
     if (fever) coins *= 2;
     coins *= honorMult(st) * dexCoin(st) * (isWeekend() ? 2 : 1);
@@ -374,7 +395,7 @@
 
   // 합성: 장착 안 한 같은 등급 3개 -> 다음 등급 1개
   function mergeCandidates(st, g) {
-    return st.bats.filter((b) => b.g === g && b.id !== st.equip).sort((a, b) => a.e - b.e);
+    return st.bats.filter((b) => b.g === g && !b.sp && b.id !== st.equip).sort((a, b) => a.e - b.e);
   }
   function merge(st, g, rng) {
     rng = rng || Math.random;
@@ -389,7 +410,7 @@
 
   function sell(st, id) {
     if (id === st.equip) return { ok: false, reason: 'equipped' };
-    const b = st.bats.find((x) => x.id === id); if (!b) return { ok: false };
+    const b = st.bats.find((x) => x.id === id); if (!b || b.sp) return { ok: false, reason: 'limited' };
     const price = Math.ceil(GRADES[b.g].sell * (1 + b.e * 0.5));
     st.coins += price; st.bats = st.bats.filter((x) => x.id !== id);
     return { ok: true, price };
@@ -437,11 +458,15 @@
   }
   // K, M, B, T 다음은 aa, ab ... zz (방치형 표기)
   // ---------- 방망이 도감 ----------
-  function markDex(st, b) { st.dex = st.dex || {}; st.dex[b.g + '_' + b.t] = true; }
-  function dexRows(st) { const d = st.dex || {}; let n = 0; for (let g = 0; g < 5; g++) if (['power', 'contact', 'luck'].every((t) => d[g + '_' + t])) n++; return n; }
+  function markDex(st, b) { st.dex = st.dex || {}; st.dex[b.sp ? 'sp_' + b.sp : b.g + '_' + b.t] = true; }
+  function dexRows(st) { const d = st.dex || {}; let n = 0; for (let g = 0; g < GRADES.length; g++) if (['power', 'contact', 'luck'].every((t) => d[g + '_' + t])) n++; return n; }
+  const DEX_TOTAL = GRADES.length * 3 + LIMITED_KEYS.length;
   function dexCount(st) { return Object.keys(st.dex || {}).length; }
+  function dexNormal(st) { return Object.keys(st.dex || {}).filter((k) => !k.startsWith('sp_')).length; }
   function dexMult(st) { return 1 + 0.05 * dexRows(st); }
-  function dexCoin(st) { return dexCount(st) >= 15 ? 1.2 : 1; }
+  // 일반 15종(전설까지) 다 모으면 코인 +20%, 신화 3종까지 18종이면 +30%, 한정 3종을 다 모으면 +10% 더
+  function dexCoin(st) { const n = dexNormal(st), d = st.dex || {}; return 1 + (n >= 18 ? 0.3 : n >= 15 ? 0.2 : 0) + (LIMITED_KEYS.every((k) => d['sp_' + k]) ? 0.1 : 0); }
+  function seasonOn(now) { return (now || Date.now()) < SEASON_END; }
 
   // ---------- 주말 이벤트 (한국 시간 토·일 코인 2배) ----------
   function isWeekend(now) { const d = new Date((now || Date.now()) + 9 * 3600e3).getUTCDay(); return d === 0 || d === 6; }
@@ -470,7 +495,8 @@
   function winBoss(st, i) {
     const r = bossReward(st, i); st.bossWin = st.bossWin || {}; st.bossWin[i] = true;
     st.gems += r.gems; const c = Math.max(100, Math.floor(expectedCPS(st, 150) * r.sec)); st.coins += c;
-    return { gems: r.gems, coins: c, first: r.first };
+    const bat = i === 9 ? grantLimited(st, 'boss') : null;
+    return { gems: r.gems, coins: c, first: r.first, bat };
   }
 
   // ---------- 홈런 더비 ----------
@@ -485,7 +511,8 @@
   }
   function derbyCanRank(st, now) { return !st.derby || st.derby.date !== todayKey(now); }
   function derbyScore(hr, distm) { return hr * 1e9 + Math.min(999999999, Math.max(0, Math.round(distm))); }
-  function derbyReward(st, hr) { const gems = hr * 3; const c = Math.max(50, Math.floor(expectedCPS(st, 150) * hr * 60)); st.gems += gems; st.coins += c; return { gems, coins: c }; }
+  const DERBY_BAT_HR = 7;
+  function derbyReward(st, hr) { const gems = hr * 3; const c = Math.max(50, Math.floor(expectedCPS(st, 150) * hr * 60)); st.gems += gems; st.coins += c; const bat = hr >= DERBY_BAT_HR ? grantLimited(st, 'derby') : null; return { gems, coins: c, bat }; }
 
   // ---------- 출석, 일일 미션, 업적 ----------
   function todayKey(d) { d = d || new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
@@ -512,7 +539,8 @@
     { id: 'e10', name: '+10 강화 성공', test: (s) => (s.maxEnh || 0) >= 10, gems: 50 },
     { id: 'e15', name: '+15 강화 성공', test: (s) => (s.maxEnh || 0) >= 15, gems: 100 },
     { id: 'e20', name: '+20 강화 성공', test: (s) => (s.maxEnh || 0) >= 20, gems: 300 },
-    { id: 'legend', name: '전설 방망이 획득', test: (s) => s.gotLegend || s.bats.some((b) => b.g >= 4), gems: 100 },
+    { id: 'legend', name: '전설 방망이 획득', test: (s) => s.gotLegend || s.bats.some((b) => b.g >= 4 && !b.sp), gems: 100 },
+    { id: 'mythic', name: '신화 방망이 획득', test: (s) => s.bats.some((b) => b.g >= 5) || ['5_power', '5_contact', '5_luck'].some((k) => (s.dex || {})[k]), gems: 300 },
     { id: 'sp10', name: '특대 홈런 10번', test: (s) => s.specials >= 10, gems: 50 },
     { id: 'walk50', name: '볼넷 50번', test: (s) => s.walks >= 50, gems: 50 },
     { id: 's10', name: '달 기지 구장 도착', test: (s) => Math.max(s.maxEver || 0, s.maxStadium) >= 9, gems: 200 },
@@ -556,6 +584,7 @@
     if (!attCan(st, now)) return null;
     const r = grant(st, ATT[attDay(st)]);
     st.att.last = todayKey(now); st.att.n++;
+    if (seasonOn(now)) { st.seasonAtt = (st.seasonAtt || 0) + 1; if (st.seasonAtt >= 3) r.bat = grantLimited(st, 'season'); }
     return r;
   }
   function dailyDone(st, m) { return (daily(st).c[m.id] || 0) >= m.goal; }
@@ -601,7 +630,7 @@
     equipped, fenceOf, coinMultOf, resistOf, honorMult, canRetire, honorGain, retire, fmtDist, OUT_START, RETIRE_AT, HONOR_PCT, perfectWindow, goodWindow, weakWindow, autoPerfect, rollAutoQuality, specialChance,
     hitResult, cycleTime, takeTime, expectedCPS, simAuto, genPitch, swingOutcome, autoDecide, hitBonus, callPitch, resetCount, eyeOf, eyeRate, ballChance, edgeDist, PITCH_T, homerunRate, tryEnhance, removeBat, bestBat, woodPrice, normalBoxPrice, buy,
     mergeCandidates, merge, sell, applyHit, moveStadium, offlineReward, fmt,
-    PITCH_TYPES, pitchTypesFor, markDex, dexRows, dexCount, dexMult, dexCoin, isWeekend, BOSSES, BOSS_HR, BOSS_OUTS, PITCHERS, pitcherOf, avgKmh, bossOpen, bossReward, winBoss, DERBY_N, weekKey, derbyCanRank, derbyScore, derbyReward,
+    PITCH_TYPES, pitchTypesFor, LIMITED, LIMITED_KEYS, DEX_TOTAL, DERBY_BAT_HR, hasT, batKey, traitName, traitShort, traitDesc, hasLimited, grantLimited, seasonOn, dexNormal, markDex, dexRows, dexCount, dexMult, dexCoin, isWeekend, BOSSES, BOSS_HR, BOSS_OUTS, PITCHERS, pitcherOf, avgKmh, bossOpen, bossReward, winBoss, DERBY_N, weekKey, derbyCanRank, derbyScore, derbyReward,
     todayKey, ATT, DAILY, DAILY_ALL, ACH, daily, bump, rewardText, grant, attCan, attDay, claimAtt, dailyDone, claimDaily, claimDailyAll, achReady, claimAch, claimableCount,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
