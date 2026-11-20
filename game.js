@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const H = window.HR;
-  const VERSION = 'v0.8.1 베타';
+  const VERSION = 'v0.8.2 베타';
   const SAVE_KEY = 'hrk_save_v1';
   const fmt = H.fmt;
   const $ = (id) => document.getElementById(id);
@@ -163,7 +163,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   function preloadSprites() {
     fetch('assets/sprites.json?v=' + VERSION).then((r) => r.ok ? r.json() : null).then((cal) => {
       if (!cal) return; ART.cal = cal;
-      for (const who of ['pitcher', 'batter', 'side', 'boss']) {
+      for (const who of ['pitcher', 'batter', 'side', 'boss', 'hold']) {
         const c = cal[who]; if (!c) continue;
         const frames = []; let left = c.n;
         for (let i = 0; i < c.n; i++) { const im = new Image(); im.onload = () => { frames[i] = im; if (--left === 0) ART[who] = frames; }; im.src = 'assets/sprites/' + who + '_' + i + '.webp'; }
@@ -765,6 +765,49 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     const mid = nrm({ x: 0.35, y: 0.1, z: 0.9 });
     return e < 0.5 ? mix(hit, mid, e * 2) : mix(mid, FOLLOW, (e - 0.5) * 2);
   }
+  // 방망이를 실제로 쥔 타자 그림(초록 방망이)을 장착 등급 색으로 바꿔 칠한다
+  const HOLDC = {};
+  function holdFrames(g) {
+    if (HOLDC[g]) return HOLDC[g];
+    const G2 = H.GRADES[g], hex = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+    const lc = hex(G2.color), dc = hex(G2.dark);
+    HOLDC[g] = ART.hold.map((im) => {
+      const c = document.createElement('canvas'); c.width = im.width; c.height = im.height;
+      const x = c.getContext('2d'); x.drawImage(im, 0, 0);
+      const m = document.createElement('canvas'); m.width = im.width; m.height = im.height; const mx = m.getContext('2d');
+      const d = x.getImageData(0, 0, c.width, c.height), md = mx.createImageData(c.width, c.height), p = d.data, q = md.data;
+      for (let i = 0; i < p.length; i += 4) {
+        const r = p[i], gg = p[i + 1], bb = p[i + 2];
+        const t = Math.max(0, Math.min(1, (gg - Math.max(r, bb) - 40) / 140));
+        if (t <= 0 || p[i + 3] === 0) continue;
+        const k = 0.35 + 0.65 * t; // 가장자리는 어둡게
+        const nr = dc[0] + (lc[0] - dc[0]) * k, ng = dc[1] + (lc[1] - dc[1]) * k, nb = dc[2] + (lc[2] - dc[2]) * k;
+        p[i] = r + (nr - r) * Math.min(1, t * 1.6); p[i + 1] = gg + (ng - gg) * Math.min(1, t * 1.6); p[i + 2] = bb + (nb - bb) * Math.min(1, t * 1.6);
+        q[i] = nr; q[i + 1] = ng; q[i + 2] = nb; q[i + 3] = t > 0.4 ? 255 : 0;
+      }
+      x.putImageData(d, 0, 0); mx.putImageData(md, 0, 0);
+      return { img: c, bat: m };
+    });
+    return HOLDC[g];
+  }
+  function drawBatterHold(kk) {
+    const bx = -0.95, bz = 0.45;
+    const f = proj(bx, 0, bz), s = f[2];
+    const fi = kk < 0.35 ? 0 : kk < 0.8 ? 1 : kk < 1.5 ? 2 : 3;
+    const b = H.equipped(st), fr = holdFrames(b.g)[fi], c = ART.cal.hold;
+    const dh = 1.85 * s * (c.scale || 1), dw = dh * fr.img.width / fr.img.height;
+    const x0 = f[0] - dw * c.footX[fi], y0 = f[1] - dh * 0.97;
+    // 휘두르는 궤적
+    if (kk > 0.25 && kk < 1.7 && (G.phase === 'pitch' || G.phase === 'launch')) {
+      const cx = x0 + dw * c.footX[fi], cy = y0 + dh * 0.42, R = dh * 0.55;
+      const a0 = Math.PI * 1.05, a1 = Math.PI * (1.05 + Math.min(1, kk / 1.3) * 0.95);
+      const gr2 = ctx.createLinearGradient(cx - R, cy, cx + R, cy); gr2.addColorStop(0, 'rgba(255,255,255,0)'); gr2.addColorStop(1, 'rgba(255,255,255,.45)');
+      ctx.strokeStyle = gr2; ctx.lineWidth = dh * 0.09; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.ellipse(cx, cy, R, R * 0.45, 0, a0, a1); ctx.stroke();
+    }
+    ctx.drawImage(fr.img, x0, y0, dw, dh);
+    if (b.e >= 10) { ctx.save(); ctx.shadowColor = H.GRADES[b.g].color; ctx.shadowBlur = 16; ctx.drawImage(fr.bat, x0, y0, dw, dh); ctx.restore(); }
+  }
   function drawBatterBack() {
     const bx = -0.95, bz = 0.45;
     const f = proj(bx, 0, bz), s = f[2];
@@ -776,6 +819,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       return 2;
     })();
     const kk = G.phase === 'launch' ? 1 + Math.min(1, G.t / 0.12) : (G.phase === 'call' && G.call && G.call.swung) ? 2 : Math.max(0, k);
+    if (ART.hold && ART.cal && ART.cal.hold) { drawBatterHold(kk); return; }
     // 몸통 회전량
     const twist = Math.max(0, Math.min(1, kk)) * 0.35;
     const bw = 0.5 * s;
