@@ -97,7 +97,8 @@
       v: 1, coins: 0, gems: 60, tickets: 0,
       stats: { power: 0, contact: 0, speed: 0, fame: 0, eye: 0 },
       count: { b: 0, s: 0 }, eyeCombo: 0, meatball: false, walks: 0, strikeouts: 0, takes: 0,
-      honor: 0, retires: 0, runBest: 0, vibe: true,
+      honor: 0, retires: 0, runBest: 0, vibe: true, bgm: true,
+      att: { last: '', n: 0 }, daily: null, ach: {}, maxEnh: 0, gotLegend: false, maxEver: 0, clearedLast: false,
       bats: [b], equip: b.id,
       stadium: 0, maxStadium: 0, stadiumHR: [0], cleared: [],
       totalHR: 0, totalHits: 0, best: 0, streak: 0, bestStreak: 0,
@@ -238,7 +239,7 @@
     }
     st.takes++;
     if (!p.strike) {
-      st.eyeCombo = Math.min(5, (st.eyeCombo || 0) + 1); st.count.b++;
+      st.eyeCombo = Math.min(5, (st.eyeCombo || 0) + 1); st.count.b++; bump(st, 'eye');
       if (st.count.b >= 4) {
         st.walks++; resetCount(st); st.meatball = true;
         const coins = hitResult(st, 'good', false, fever).coins;
@@ -264,7 +265,7 @@
   function simAuto(st, n, seed) {
     let sd = seed || 12345;
     const rng = () => { sd = (sd * 1103515245 + 12345) & 0x7fffffff; return sd / 0x7fffffff; };
-    const c = { count: { b: 0, s: 0 }, eyeCombo: 0, meatball: false, streak: 0, walks: 0, strikeouts: 0, takes: 0, coins: 0 };
+    const c = { count: { b: 0, s: 0 }, eyeCombo: 0, meatball: false, streak: 0, walks: 0, strikeouts: 0, takes: 0, coins: 0, _sim: true };
     const t = Object.assign({}, st, c);
     let coins = 0, time = 0, hr = 0, contacts = 0;
     for (let i = 0; i < n; i++) {
@@ -292,9 +293,9 @@
     const cost = enhCost(b, st);
     if (b.e >= ENH_MAX) return { ok: false, reason: 'max' };
     if (st.coins < cost) return { ok: false, reason: 'coins' };
-    st.coins -= cost; st.enhTries++;
+    st.coins -= cost; st.enhTries++; bump(st, 'enh');
     const rate = enhRate(b);
-    if (rng() * 100 < rate) { b.e++; return { ok: true, result: 'success', e: b.e }; }
+    if (rng() * 100 < rate) { b.e++; st.maxEnh = Math.max(st.maxEnh || 0, b.e); return { ok: true, result: 'success', e: b.e }; }
     if (b.e < 5) return { ok: true, result: 'keep', e: b.e };
     if (b.e < 10) { b.e--; return { ok: true, result: 'down', e: b.e }; }
     if (rng() < DESTROY_CHANCE) {
@@ -338,11 +339,11 @@
     }
     if (kind === 'normal') {
       const p = normalBoxPrice(st); if (st.coins < p) return { ok: false, reason: 'coins' };
-      st.coins -= p; const b = newBat(rollGrade(BOX.normal.odds, rng), null, rng); st.bats.push(b); return { ok: true, bat: b };
+      st.coins -= p; const b = newBat(rollGrade(BOX.normal.odds, rng), null, rng); st.bats.push(b); if (b.g >= 4) st.gotLegend = true; return { ok: true, bat: b };
     }
     if (kind === 'premium') {
       if (st.gems < PREMIUM_GEMS) return { ok: false, reason: 'gems' };
-      st.gems -= PREMIUM_GEMS; const b = newBat(rollGrade(BOX.premium.odds, rng), null, rng); st.bats.push(b); return { ok: true, bat: b };
+      st.gems -= PREMIUM_GEMS; const b = newBat(rollGrade(BOX.premium.odds, rng), null, rng); st.bats.push(b); if (b.g >= 4) st.gotLegend = true; return { ok: true, bat: b };
     }
     if (kind === 'ticket') {
       if (st.gems < TICKET_GEMS) return { ok: false, reason: 'gems' };
@@ -362,7 +363,7 @@
     if (c.length < 3) return { ok: false, reason: 'count' };
     const use = c.slice(0, 3).map((b) => b.id);
     st.bats = st.bats.filter((b) => !use.includes(b.id));
-    const nb = newBat(g + 1, null, rng); st.bats.push(nb);
+    const nb = newBat(g + 1, null, rng); st.bats.push(nb); if (nb.g >= 4) st.gotLegend = true;
     return { ok: true, bat: nb };
   }
 
@@ -382,15 +383,17 @@
     if (r.d > (st.runBest || 0)) st.runBest = r.d;
     if (r.special) { st.specials++; st.gems += 1; ev.gems += 1; }
     if (r.hr) {
-      st.totalHR++; st.streak++; st.bestStreak = Math.max(st.bestStreak, st.streak);
+      st.totalHR++; st.streak++; bump(st, 'hr'); st.bestStreak = Math.max(st.bestStreak, st.streak);
       st.stadiumHR[st.stadium] = (st.stadiumHR[st.stadium] || 0) + 1;
       if (st.totalHR % 25 === 0) { st.gems += 2; ev.gems += 2; }
       if (st.stadiumHR[st.stadium] >= HR_TO_CLEAR && !st.cleared.includes(st.stadium)) {
         st.cleared.push(st.stadium); const g = 15 + st.stadium * 5; st.gems += g; ev.gems += g; ev.cleared = true;
         if (st.stadium + 1 < STADIUMS.length) st.maxStadium = Math.max(st.maxStadium, st.stadium + 1);
+        if (st.stadium === STADIUMS.length - 1) st.clearedLast = true;
       }
     } else st.streak = 0;
     st.coins += r.coins;
+    st.maxEver = Math.max(st.maxEver || 0, st.maxStadium);
     return ev;
   }
 
@@ -413,6 +416,98 @@
     return (k < 10 ? parseFloat(k.toFixed(2)) : k < 100 ? parseFloat(k.toFixed(1)) : Math.round(k).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')) + 'km';
   }
   // K, M, B, T 다음은 aa, ab ... zz (방치형 표기)
+  // ---------- 출석, 일일 미션, 업적 ----------
+  function todayKey(d) { d = d || new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  const ATT = [
+    { t: 'gems', n: 20 }, { t: 'coins', sec: 600 }, { t: 'gems', n: 30 }, { t: 'tickets', n: 1 },
+    { t: 'gems', n: 50 }, { t: 'coins', sec: 1800 }, { t: 'box', n: 1, gems: 50 },
+  ];
+  const DAILY = [
+    { id: 'hr', name: '홈런 20개 치기', goal: 20, rew: { t: 'gems', n: 10 } },
+    { id: 'perfect', name: '직접 쳐서 PERFECT 5번', goal: 5, rew: { t: 'gems', n: 15 } },
+    { id: 'eye', name: '볼 10개 골라내기', goal: 10, rew: { t: 'coins', sec: 900 } },
+    { id: 'enh', name: '방망이 강화 3번 시도', goal: 3, rew: { t: 'tickets', n: 1 } },
+  ];
+  const DAILY_ALL = { t: 'gems', n: 30 };
+  const ACH = [
+    { id: 'hr1', name: '첫 홈런', test: (s) => s.totalHR >= 1, gems: 10 },
+    { id: 'hr100', name: '홈런 100개', test: (s) => s.totalHR >= 100, gems: 30 },
+    { id: 'hr1000', name: '홈런 1,000개', test: (s) => s.totalHR >= 1000, gems: 100 },
+    { id: 'hr10000', name: '홈런 10,000개', test: (s) => s.totalHR >= 10000, gems: 300 },
+    { id: 'd100', name: '비거리 100m', test: (s) => s.best >= 100, gems: 20 },
+    { id: 'd1k', name: '비거리 1km', test: (s) => s.best >= 1000, gems: 50 },
+    { id: 'd100k', name: '비거리 100km', test: (s) => s.best >= 1e5, gems: 150 },
+    { id: 'd1000k', name: '비거리 1,000km', test: (s) => s.best >= 1e6, gems: 500 },
+    { id: 'e10', name: '+10 강화 성공', test: (s) => (s.maxEnh || 0) >= 10, gems: 50 },
+    { id: 'e15', name: '+15 강화 성공', test: (s) => (s.maxEnh || 0) >= 15, gems: 100 },
+    { id: 'e20', name: '+20 강화 성공', test: (s) => (s.maxEnh || 0) >= 20, gems: 300 },
+    { id: 'legend', name: '전설 방망이 획득', test: (s) => s.gotLegend || s.bats.some((b) => b.g >= 4), gems: 100 },
+    { id: 'sp10', name: '특대 홈런 10번', test: (s) => s.specials >= 10, gems: 50 },
+    { id: 'walk50', name: '볼넷 50번', test: (s) => s.walks >= 50, gems: 50 },
+    { id: 's10', name: '달 기지 구장 도착', test: (s) => Math.max(s.maxEver || 0, s.maxStadium) >= 9, gems: 200 },
+    { id: 'ret1', name: '첫 은퇴', test: (s) => (s.retires || 0) >= 1, gems: 100 },
+    { id: 'ret5', name: '은퇴 5번', test: (s) => (s.retires || 0) >= 5, gems: 300 },
+    { id: 's15', name: '대기권 돌파 클리어', test: (s) => !!s.clearedLast, gems: 1000 },
+  ];
+  function daily(st, now) {
+    const k = todayKey(now);
+    if (!st.daily || st.daily.date !== k) st.daily = { date: k, c: {}, got: {}, all: false };
+    return st.daily;
+  }
+  function bump(st, id, n) { if (st._sim) return; const d = daily(st); d.c[id] = (d.c[id] || 0) + (n || 1); }
+  function rewardText(r) {
+    if (r.t === 'gems') return '◆ ' + r.n;
+    if (r.t === 'tickets') return '보호권 ' + r.n;
+    if (r.t === 'coins') return '코인 ' + Math.round(r.sec / 60) + '분치';
+    if (r.t === 'box') return '고급 상자 + ◆ ' + r.gems;
+    return '';
+  }
+  function grant(st, r) {
+    if (r.t === 'gems') { st.gems += r.n; return { text: '◆ 젬 +' + r.n }; }
+    if (r.t === 'tickets') { st.tickets += r.n; return { text: '강화 보호권 +' + r.n }; }
+    if (r.t === 'coins') { const c = Math.max(100, Math.floor(expectedCPS(st, 150) * r.sec)); st.coins += c; return { text: '₩ ' + fmt(c), coins: c }; }
+    if (r.t === 'box') {
+      st.gems += r.gems || 0;
+      if (st.bats.length >= INV_MAX) { st.gems += PREMIUM_GEMS; return { text: '가방이 가득 차서 ◆ ' + (PREMIUM_GEMS + (r.gems || 0)) }; }
+      const b = newBat(rollGrade(BOX.premium.odds, Math.random), null, Math.random); st.bats.push(b); if (b.g >= 4) st.gotLegend = true;
+      return { text: '고급 상자 + ◆ ' + r.gems, bat: b };
+    }
+    return { text: '' };
+  }
+  function attCan(st, now) { st.att = st.att || { last: '', n: 0 }; return st.att.last !== todayKey(now); }
+  function attDay(st) { return ((st.att && st.att.n) || 0) % 7; }
+  function claimAtt(st, now) {
+    if (!attCan(st, now)) return null;
+    const r = grant(st, ATT[attDay(st)]);
+    st.att.last = todayKey(now); st.att.n++;
+    return r;
+  }
+  function dailyDone(st, m) { return (daily(st).c[m.id] || 0) >= m.goal; }
+  function claimDaily(st, id) {
+    const d = daily(st), m = DAILY.find((x) => x.id === id);
+    if (!m || d.got[id] || !dailyDone(st, m)) return null;
+    d.got[id] = true; return grant(st, m.rew);
+  }
+  function claimDailyAll(st) {
+    const d = daily(st);
+    if (d.all || !DAILY.every((m) => d.got[m.id])) return null;
+    d.all = true; return grant(st, DAILY_ALL);
+  }
+  function achReady(st, a) { return !(st.ach && st.ach[a.id]) && a.test(st); }
+  function claimAch(st, id) {
+    const a = ACH.find((x) => x.id === id); st.ach = st.ach || {};
+    if (!a || !achReady(st, a)) return null;
+    st.ach[id] = true; st.gems += a.gems; return { text: '◆ 젬 +' + a.gems };
+  }
+  function claimableCount(st, now) {
+    const d = daily(st, now);
+    let n = attCan(st, now) ? 1 : 0;
+    n += DAILY.filter((m) => !d.got[m.id] && (d.c[m.id] || 0) >= m.goal).length;
+    if (!d.all && DAILY.every((m) => d.got[m.id])) n++;
+    n += ACH.filter((a) => achReady(st, a)).length;
+    return n;
+  }
+
   const UNITS = ['', 'K', 'M', 'B', 'T'];
   for (let i = 0; i < 26; i++) for (let j = 0; j < 26; j++) UNITS.push(String.fromCharCode(97 + i) + String.fromCharCode(97 + j));
   function fmt(n, dp) {
@@ -430,5 +525,6 @@
     equipped, fenceOf, coinMultOf, resistOf, honorMult, canRetire, honorGain, retire, fmtDist, OUT_START, RETIRE_AT, HONOR_PCT, perfectWindow, goodWindow, weakWindow, autoPerfect, rollAutoQuality, specialChance,
     hitResult, cycleTime, takeTime, expectedCPS, simAuto, genPitch, swingOutcome, autoDecide, hitBonus, callPitch, resetCount, eyeOf, eyeRate, ballChance, edgeDist, PITCH_T, homerunRate, tryEnhance, removeBat, bestBat, woodPrice, normalBoxPrice, buy,
     mergeCandidates, merge, sell, applyHit, moveStadium, offlineReward, fmt,
+    todayKey, ATT, DAILY, DAILY_ALL, ACH, daily, bump, rewardText, grant, attCan, attDay, claimAtt, dailyDone, claimDaily, claimDailyAll, achReady, claimAch, claimableCount,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

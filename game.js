@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const H = window.HR;
-  const VERSION = 'v0.5 베타';
+  const VERSION = 'v0.6 베타';
   const SAVE_KEY = 'hrk_save_v1';
   const fmt = H.fmt;
   const $ = (id) => document.getElementById(id);
@@ -248,6 +248,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     const dir = r.quality === 'weak' ? 0.3 : 1;
     G.launch = { x0: b.x, y0: b.y, z0: Math.max(0, b.z), vx: (p.x * 0.6 + (Math.random() - 0.5)) * 3, h: r.hr ? 14 : r.quality === 'weak' ? 0.6 : 6 * dir, far: r.quality === 'weak' ? 9 : 45 };
     G.phase = 'launch'; G.t = 0; G.trail1 = [];
+    if (manual && q === 'perfect') H.bump(st, 'perfect');
     if (manual) { st.manualHits++; if (st.tutorial && st.manualHits >= 3) { st.tutorial = false; $('tapHint').style.display = 'none'; } }
   }
 
@@ -1022,6 +1023,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     dots[1].style.display = (eb.e < H.ENH_MAX && st.coins >= H.enhCost(eb, st)) || H.bestBat(st).id !== st.equip ? 'block' : 'none';
     dots[2].style.display = st.gems >= H.PREMIUM_GEMS ? 'block' : 'none';
     dots[3].style.display = st.maxStadium > st.stadium ? 'block' : 'none';
+    if (dots[4]) dots[4].style.display = H.claimableCount(st) > 0 ? 'block' : 'none';
   }
   let toastT = 0;
   function toast(s) { const t = $('toast'); t.textContent = s; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 1800); }
@@ -1042,7 +1044,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   function renderPanel() {
     dirty = false;
     const y = panel.scrollTop;
-    const html = tab === 'batter' ? renderBatter() : tab === 'bats' ? renderBats() : tab === 'shop' ? renderShop() : renderStadium();
+    const html = tab === 'batter' ? renderBatter() : tab === 'bats' ? renderBats() : tab === 'shop' ? renderShop() : tab === 'mission' ? renderMission() : renderStadium();
     if (html === lastHTML) return;
     lastHTML = html; panel.innerHTML = html;
     panel.scrollTop = y;
@@ -1144,12 +1146,48 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     h += `<div class="h">기록</div><div class="card small" style="line-height:1.7">
       총 홈런 <b style="color:#fff">${fmt(st.totalHR)}</b> · 총 타격 ${fmt(st.totalHits)}<br>
       최고 비거리 <b style="color:#ffd84a">${H.fmtDist(st.best)}</b> · 최고 연속 홈런 ${st.bestStreak}<br>
-      특대 홈런 ${st.specials} · 강화 시도 ${st.enhTries} · 파괴된 방망이 ${st.destroyed}</div>
-      <div class="h">설정</div><div class="card" style="display:flex;gap:8px">
+      특대 홈런 ${st.specials} · 강화 시도 ${st.enhTries} · 파괴된 방망이 ${st.destroyed}
+      <button class="btn big" id="shareBtn" style="margin-top:8px">📸 내 기록 카드 공유하기</button></div>
+      <div class="h">기기 이전</div><div class="card"><div class="small" style="margin-bottom:6px">다른 폰이나 브라우저로 옮길 때 코드를 만들어 붙여넣으세요. 기록은 이 기기에만 저장돼요.</div>
+      <div style="display:flex;gap:8px"><button class="btn sm blue" id="expBtn" style="flex:1">이전 코드 만들기</button><button class="btn sm gray" id="impBtn" style="flex:1">코드로 불러오기</button></div></div>
+      <div class="h">설정</div><div class="card" style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn sm ${st.bgm !== false ? 'green' : 'gray'}" id="bgmBtn">배경음 ${st.bgm !== false ? 'ON' : 'OFF'}</button>
       <button class="btn sm ${st.sound ? 'green' : 'gray'}" id="sndBtn">사운드 ${st.sound ? 'ON' : 'OFF'}</button>
       <button class="btn sm ${st.vibe !== false ? 'green' : 'gray'}" id="vibBtn">진동 ${st.vibe !== false ? 'ON' : 'OFF'}</button>
       <button class="btn sm red" id="resetBtn">처음부터 하기</button></div>
       <div class="ver">홈런왕 키우기 ${VERSION}</div>`;
+    return h;
+  }
+
+  function rewardToast(r) { toast(r.text + ' 받았어요'); if (r.bat) setTimeout(() => queueModal(() => revealModal(r.bat, '고급 상자 오픈!')), 200); }
+  function renderMission() {
+    const d = H.daily(st), can = H.attCan(st), day = H.attDay(st);
+    let h = `<div class="h">출석 보상 <span class="r small">누적 ${st.att.n}일</span></div><div class="card"><div class="attrow">`;
+    H.ATT.forEach((r, i) => {
+      const done = i < day || (!can && i === day && false);
+      const cls = i < day ? 'got' : i === day && can ? 'now' : '';
+      h += `<div class="attd ${cls}"><b>${i + 1}일</b><span>${H.rewardText(r)}</span>${i < day ? '<i>✓</i>' : ''}</div>`;
+      void done;
+    });
+    h += `</div><button class="btn big" data-att ${can ? '' : 'disabled'}>${can ? (day + 1) + '일차 보상 받기' : '오늘 출석 완료! 내일 또 와요'}</button></div>`;
+    h += `<div class="h">일일 미션 <span class="r small">자정에 초기화</span></div>`;
+    for (const m of H.DAILY) {
+      const c = Math.min(m.goal, d.c[m.id] || 0), got = d.got[m.id], ok = c >= m.goal;
+      h += `<div class="card mis"><div style="flex:1;min-width:0"><div>${m.name}</div><div class="bar" style="margin-top:5px"><i style="width:${c / m.goal * 100}%"></i></div>
+        <div class="small" style="margin-top:3px">${c}/${m.goal} · 보상 ${H.rewardText(m.rew)}</div></div>
+        <button class="btn sm ${got ? 'gray' : ok ? 'green' : 'gray'}" data-daily="${m.id}" ${!got && ok ? '' : 'disabled'}>${got ? '완료' : '받기'}</button></div>`;
+    }
+    const allGot = H.DAILY.every((m) => d.got[m.id]);
+    h += `<div class="card mis"><div style="flex:1">🎁 미션 모두 완료 보너스<div class="small">보상 ${H.rewardText(H.DAILY_ALL)}</div></div>
+      <button class="btn sm ${d.all ? 'gray' : allGot ? '' : 'gray'}" data-dall ${!d.all && allGot ? '' : 'disabled'}>${d.all ? '완료' : '받기'}</button></div>`;
+    const ready = H.ACH.filter((a) => H.achReady(st, a)), todo = H.ACH.filter((a) => !(st.ach || {})[a.id] && !a.test(st)), done = H.ACH.filter((a) => (st.ach || {})[a.id]);
+    h += `<div class="h">업적 <span class="r small">${done.length}/${H.ACH.length}</span></div>`;
+    for (const a of ready.concat(todo)) {
+      const ok = H.achReady(st, a);
+      h += `<div class="card mis"><div style="flex:1">${ok ? '🏆' : '🔒'} ${a.name}<div class="small">보상 ◆ ${a.gems}</div></div>
+        <button class="btn sm ${ok ? '' : 'gray'}" data-ach="${a.id}" ${ok ? '' : 'disabled'}>받기</button></div>`;
+    }
+    if (done.length) h += `<div class="card small">달성한 업적: ${done.map((a) => a.name).join(', ')}</div>`;
     return h;
   }
 
@@ -1192,9 +1230,17 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       updateHUD(); return renderPanel();
     }
     if (d.go) { H.moveStadium(st, +d.go); SFX.click(); track('stadium_move', { s: +d.go + 1 }); afterMove(); return; }
-    if (t.id === 'sndBtn') { st.sound = !st.sound; return renderPanel(); }
+    if (t.id === 'sndBtn') { st.sound = !st.sound; BGM.sync(); return renderPanel(); }
     if (t.id === 'vibBtn') { st.vibe = st.vibe === false; if (st.vibe) vib(30); syncHaptic(); return renderPanel(); }
     if (t.id === 'retireBtn') return retireModal();
+    if (t.id === 'bgmBtn') { st.bgm = st.bgm === false; BGM.sync(); return renderPanel(); }
+    if (t.id === 'shareBtn') return shareCard();
+    if (t.id === 'expBtn') return exportModal();
+    if (t.id === 'impBtn') return importModal();
+    if (d.att != null) { const r = H.claimAtt(st); if (r) { SFX.box(); vib(30); track('att_claim', { n: st.att.n }); rewardToast(r); } updateHUD(); return renderPanel(); }
+    if (d.daily) { const r = H.claimDaily(st, d.daily); if (r) { SFX.up(); track('mission_claim', { id: d.daily }); rewardToast(r); } updateHUD(); return renderPanel(); }
+    if (d.dall != null) { const r = H.claimDailyAll(st); if (r) { SFX.success(); confetti(); track('mission_all', {}); rewardToast(r); } updateHUD(); return renderPanel(); }
+    if (d.ach) { const r = H.claimAch(st, d.ach); if (r) { SFX.success(); track('ach_claim', { id: d.ach }); rewardToast(r); } updateHUD(); return renderPanel(); }
     if (t.id === 'resetBtn') {
       return confirmModal('정말 처음부터 할까요? 모든 기록이 지워져요.', () => { localStorage.removeItem(SAVE_KEY); st = H.newState(); save(); afterMove(); toast('새로 시작했어요'); });
     }
@@ -1222,7 +1268,9 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   // ---------- 모달 ----------
   const modal = $('modal');
   function openModal(html) { modal.innerHTML = '<div class="mbox">' + html + '</div>'; modal.classList.remove('hidden'); }
-  function closeModal() { modal.classList.add('hidden'); modal.innerHTML = ''; }
+  const mQueue = [];
+  function closeModal() { modal.classList.add('hidden'); modal.innerHTML = ''; const next = mQueue.shift(); if (next) setTimeout(next, 180); }
+  function queueModal(fn) { if (modal.classList.contains('hidden')) fn(); else mQueue.push(fn); }
   modal.addEventListener('click', (e) => {
     const t = e.target.closest('button'); if (!t) return;
     if (t.dataset.close != null) closeModal();
@@ -1298,6 +1346,97 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       <div class="mbtns"><button class="btn big" data-close>닫기</button></div>`);
   }
 
+  function attModal() {
+    const day = H.attDay(st), r = H.ATT[day];
+    openModal(`<h2>📅 출석 ${day + 1}일차</h2><p>매일 들어오면 7일 동안 보상이 커져요. 7일차엔 고급 상자!</p>
+      <div class="attrow" style="margin:10px 0">${H.ATT.map((x, i) => `<div class="attd ${i < day ? 'got' : i === day ? 'now' : ''}"><b>${i + 1}일</b><span>${H.rewardText(x)}</span>${i < day ? '<i>✓</i>' : ''}</div>`).join('')}</div>
+      <div class="mbtns"><button class="btn big" id="attGet">${H.rewardText(r)} 받기</button></div>`);
+    $('attGet').onclick = () => { const g = H.claimAtt(st); closeModal(); if (g) { SFX.box(); vib(30); track('att_claim', { n: st.att.n }); rewardToast(g); } updateHUD(); renderPanel(); };
+  }
+
+  // ---------- 기록 공유 카드 ----------
+  function loadImgP(src) { return new Promise((res) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = src; }); }
+  async function makeCard() {
+    const Wc = 1080, Hc = 1350, c = document.createElement('canvas'); c.width = Wc; c.height = Hc;
+    const x = c.getContext('2d');
+    try { await document.fonts.load('80px Jua'); } catch (e) { /* noop */ }
+    const b = H.equipped(st);
+    const [ka, em, bi] = await Promise.all([loadImgP('assets/ui/key_art.webp'), loadImgP('assets/ui/emblem.webp'), BAT_ART ? loadImgP('assets/bats/g' + b.g + '_' + b.t + '.webp') : null]);
+    const g0 = x.createLinearGradient(0, 0, 0, Hc); g0.addColorStop(0, '#123a6b'); g0.addColorStop(1, '#071629'); x.fillStyle = g0; x.fillRect(0, 0, Wc, Hc);
+    if (ka) { const sc = Math.max(Wc / ka.width, Hc / ka.height); x.globalAlpha = 0.55; x.drawImage(ka, (Wc - ka.width * sc) / 2, (Hc - ka.height * sc) / 2, ka.width * sc, ka.height * sc); x.globalAlpha = 1; }
+    const ov = x.createLinearGradient(0, 0, 0, Hc); ov.addColorStop(0, 'rgba(5,15,35,.75)'); ov.addColorStop(0.45, 'rgba(5,15,35,.35)'); ov.addColorStop(1, 'rgba(5,15,35,.92)'); x.fillStyle = ov; x.fillRect(0, 0, Wc, Hc);
+    const txt = (t, X, Y, size, col, stroke, align) => { x.font = size + 'px Jua'; x.textAlign = align || 'center'; x.lineJoin = 'round'; x.lineWidth = Math.max(6, size / 9); x.strokeStyle = stroke || 'rgba(0,0,0,.75)'; x.strokeText(t, X, Y); x.fillStyle = col; x.fillText(t, X, Y); };
+    if (em) { x.save(); x.beginPath(); x.roundRect ? x.roundRect(70, 60, 150, 150, 34) : x.rect(70, 60, 150, 150); x.clip(); x.drawImage(em, 70, 60, 150, 150); x.restore(); }
+    txt('홈런왕', 250, 132, 78, '#ffd84a', '#4a2400', 'left'); txt('키우기', 250, 205, 62, '#ffffff', '#0b2a55', 'left');
+    txt('나의 최고 비거리', Wc / 2, 430, 54, '#cfe4ff');
+    txt(H.fmtDist(st.best), Wc / 2, 600, st.best >= 1e5 ? 150 : 180, '#ffd84a', '#3a1a00');
+    if (st.best >= 500) txt(st.best >= 1e6 ? '대기권 돌파 장외 홈런!' : '장외 홈런!', Wc / 2, 690, 56, '#ffffff');
+    const reach = H.STADIUMS[Math.max(st.maxEver || 0, st.maxStadium)].name;
+    const rows = [['총 홈런', fmt(st.totalHR) + '개'], ['도달한 곳', reach], ['명예', fmt(st.honor || 0) + ' (은퇴 ' + (st.retires || 0) + '회)']];
+    rows.forEach((r, i) => { const y = 800 + i * 78; x.fillStyle = 'rgba(255,255,255,.08)'; x.fillRect(150, y - 52, Wc - 300, 66); txt(r[0], 190, y, 40, '#a9c2e0', 'rgba(0,0,0,.4)', 'left'); txt(r[1], Wc - 190, y, 44, '#ffffff', 'rgba(0,0,0,.4)', 'right'); });
+    if (bi) { const bw = 640, bh = bw * bi.height / bi.width; x.drawImage(bi, (Wc - bw) / 2, 1065 - bh / 2, bw, bh); }
+    txt(H.batName(b) + ' +' + b.e, Wc / 2, 1160, 46, H.GRADES[b.g].color);
+    txt('parkbeommin.github.io/homerun-king', Wc / 2, 1290, 36, '#cfe4ff');
+    return c;
+  }
+  async function shareCard() {
+    toast('기록 카드 만드는 중...');
+    const c = await makeCard();
+    const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.9));
+    const file = new File([blob], 'homerun-king.jpg', { type: 'image/jpeg' });
+    const text = '홈런왕 키우기 최고 비거리 ' + H.fmtDist(st.best) + '! 이거 넘길 수 있어? https://parkbeommin.github.io/homerun-king/';
+    track('share_card', { best: Math.round(st.best) });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], text }); return; } catch (e) { if (e && e.name === 'AbortError') return; }
+    }
+    const url = URL.createObjectURL(blob);
+    openModal(`<h2>📸 내 기록 카드</h2><img src="${url}" style="width:100%;border-radius:12px;margin:6px 0"><p class="small">이미지를 길게 눌러 저장하거나 아래 버튼으로 받아요</p>
+      <div class="mbtns"><button class="btn gray" data-close>닫기</button><a class="btn" href="${url}" download="homerun-king.jpg" style="text-decoration:none;display:flex;align-items:center;justify-content:center">저장하기</a></div>`);
+  }
+
+  // ---------- 기기 이전 코드 ----------
+  function b64u(bytes) { let s2 = ''; for (let i = 0; i < bytes.length; i++) s2 += String.fromCharCode(bytes[i]); return btoa(s2).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+  function unb64u(t) { t = t.replace(/-/g, '+').replace(/_/g, '/'); while (t.length % 4) t += '='; const bin = atob(t); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; }
+  function hash4(t) { let h = 2166136261; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36).slice(-4); }
+  async function pipe(bytes, stream) { const r = new Response(new Blob([bytes]).stream().pipeThrough(stream)); return new Uint8Array(await r.arrayBuffer()); }
+  async function makeCode() {
+    st.lastSave = Date.now();
+    const json = new TextEncoder().encode(JSON.stringify(st));
+    let body, tag = 'R';
+    if (window.CompressionStream) { body = b64u(await pipe(json, new CompressionStream('deflate-raw'))); tag = 'Z'; } else body = b64u(json);
+    return 'HRK1' + tag + '.' + hash4(body) + '.' + body;
+  }
+  async function readCode(code) {
+    code = (code || '').replace(/\s+/g, '');
+    const m = code.match(/^HRK1([ZR])\.([0-9a-z]{1,4})\.([A-Za-z0-9_-]+)$/);
+    if (!m || hash4(m[3]) !== m[2]) throw new Error('bad');
+    let bytes = unb64u(m[3]);
+    if (m[1] === 'Z') bytes = await pipe(bytes, new DecompressionStream('deflate-raw'));
+    const o = JSON.parse(new TextDecoder().decode(bytes));
+    if (!o || !Array.isArray(o.bats) || o.stats == null) throw new Error('bad');
+    return o;
+  }
+  async function exportModal() {
+    const code = await makeCode();
+    openModal(`<h2>📦 이전 코드</h2><p class="small">이 코드를 복사해서 새 기기의 [구장 → 코드로 불러오기]에 붙여넣으세요. 코드에는 지금 기록 전체가 들어 있어요.</p>
+      <textarea id="codeBox" readonly style="width:100%;height:110px;margin:8px 0;border-radius:10px;border:2px solid #3d74b3;background:#0a1d36;color:#cfe4ff;font-size:11px;padding:8px;word-break:break-all">${code}</textarea>
+      <div class="mbtns"><button class="btn gray" data-close>닫기</button><button class="btn" id="copyCode">복사하기</button></div>`);
+    $('copyCode').onclick = async () => { try { await navigator.clipboard.writeText(code); toast('복사했어요'); } catch (e) { const tb = $('codeBox'); tb.select(); document.execCommand('copy'); toast('복사했어요'); } };
+    track('save_export', {});
+  }
+  function importModal() {
+    openModal(`<h2>📥 코드로 불러오기</h2><p class="small">다른 기기에서 만든 이전 코드를 붙여넣으세요. 지금 이 기기의 기록은 덮어써져요.</p>
+      <textarea id="codeIn" style="width:100%;height:110px;margin:8px 0;border-radius:10px;border:2px solid #3d74b3;background:#0a1d36;color:#fff;font-size:12px;padding:8px" placeholder="HRK1Z..."></textarea>
+      <div class="mbtns"><button class="btn gray" data-close>취소</button><button class="btn red" id="doImp">불러오기</button></div>`);
+    $('doImp').onclick = async () => {
+      try {
+        const o = await readCode($('codeIn').value);
+        const base = H.newState(); st = Object.assign(base, o); st.stats = Object.assign(base.stats, o.stats || {});
+        save(); closeModal(); afterMove(); syncAuto(); syncHaptic(); toast('기록을 불러왔어요!'); track('save_import', {});
+      } catch (e) { toast('코드가 올바르지 않아요'); }
+    };
+  }
+
   function retireModal() {
     const g = H.honorGain(st); if (!g) return;
     openModal(`<h2>🎖 은퇴할까요?</h2><p>명예 <b style="color:#ffd84a">+${fmt(g)}</b> → 총 ${fmt((st.honor || 0) + g)}<br>비거리·코인 x${fmt(H.honorMult(st), 2)} → x${fmt(1 + H.HONOR_PCT * ((st.honor || 0) + g), 2)}</p>
@@ -1328,6 +1467,55 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       <div class="res" style="color:#ffd84a">₩ ${fmt(o.coins)}</div><p class="small">최대 8시간, 자동 타격의 50%만큼 쌓여요</p>
       <div class="mbtns"><button class="btn big" id="takeOff">받기</button></div>`);
     $('takeOff').onclick = () => { st.coins += o.coins; SFX.coin(); closeModal(); updateHUD(); renderPanel(); };
+  }
+
+  // ---------- 배경음악 (WebAudio 직접 합성, 자작 멜로디) ----------
+  const BGM = (() => {
+    let timer = null, next = 0, step = 0, master = null, on = false;
+    const BPM = 116, S16 = 60 / BPM / 4;
+    // C장조 펜타토닉 기반 자작 멜로디 (16분음표 64칸 = 4마디), 0은 쉼표
+    const N = (n) => 440 * Math.pow(2, (n - 69) / 12);
+    const mel = [72,0,74,0,76,0,79,0, 76,0,74,72,0,0,69,0, 72,0,74,0,76,0,79,81, 79,0,76,0,74,0,0,0,
+                 76,0,79,0,81,0,84,0, 81,0,79,76,0,0,74,0, 72,0,74,76,0,79,0,76, 74,0,72,0,72,0,0,0];
+    const chords = [[48, 55, 64], [45, 52, 60], [41, 48, 57], [43, 50, 59]];
+    function voice(freq, t, dur, type, vol, dest) {
+      const o = AC.createOscillator(), g = AC.createGain();
+      o.type = type; o.frequency.setValueAtTime(freq, t);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g).connect(dest); o.start(t); o.stop(t + dur + 0.02);
+    }
+    function drum(t, kind) {
+      if (kind === 'k') { const o = AC.createOscillator(), g = AC.createGain(); o.frequency.setValueAtTime(130, t); o.frequency.exponentialRampToValueAtTime(45, t + 0.12); g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.15); o.connect(g).connect(master); o.start(t); o.stop(t + 0.16); return; }
+      const src = AC.createBufferSource(); src.buffer = noiseBuf(AC, 0.05); const f = AC.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = kind === 's' ? 1800 : 7000;
+      const g = AC.createGain(); g.gain.setValueAtTime(kind === 's' ? 0.25 : 0.08, t); g.gain.exponentialRampToValueAtTime(0.001, t + (kind === 's' ? 0.12 : 0.04));
+      src.connect(f).connect(g).connect(master); src.start(t);
+    }
+    function tick() {
+      if (!AC) return;
+      while (next < AC.currentTime + 0.15) {
+        const i = step % 64, bar = Math.floor(i / 16), ch = chords[bar];
+        if (mel[i]) voice(N(mel[i]), next, S16 * 1.8, 'square', 0.05, master);
+        if (i % 4 === 0) voice(N(ch[0] - 12), next, S16 * 3.5, 'triangle', 0.22, master);
+        if (i % 8 === 4) ch.forEach((n) => voice(N(n), next, S16 * 2.5, 'triangle', 0.035, master));
+        if (i % 8 === 0) drum(next, 'k'); if (i % 8 === 4) drum(next, 's'); if (i % 2 === 0) drum(next, 'h');
+        next += S16; step++;
+      }
+    }
+    function start() {
+      if (st.bgm === false || !st.sound || on) return;
+      const ac = audio(); if (!ac) return;
+      master = ac.createGain(); master.gain.value = 0.32; master.connect(ac.destination);
+      next = ac.currentTime + 0.1; on = true; timer = setInterval(tick, 50);
+    }
+    function stop() { on = false; if (timer) clearInterval(timer); timer = null; if (master) { try { master.disconnect(); } catch (e) { /* noop */ } master = null; } }
+    function sync() { if (st.bgm === false || !st.sound) stop(); else start(); }
+    document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); else if ($('title').style.display === 'none') sync(); });
+    return { start, stop, sync };
+  })();
+
+  // ---------- PWA (홈 화면에 추가) ----------
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
   }
 
   // ---------- 루프 ----------
@@ -1368,6 +1556,8 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     audio(); SFX.click(); title.classList.add('out');
     setTimeout(() => { title.style.display = 'none'; }, 350);
     if (pendingOff && pendingOff.coins > 0) offlineModal(pendingOff);
+    if (H.attCan(st)) queueModal(attModal);
+    BGM.start();
     track('title_start', {});
   });
   track('game_start', { returning: had ? 1 : 0 });
