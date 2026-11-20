@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0f2a4a">
+<title>홈런왕 키우기 - 방치형 홈런 게임</title>
+<meta name="description" content="켜두기만 해도 홈런이 터진다! 방망이를 사고, 강화하고, 바꿔가며 더 먼 구장으로. 방치형 홈런 게임 홈런왕 키우기.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="홈런왕 키우기">
+<meta property="og:description" content="방망이를 사고, 강화하고, 바꿔서 장외 홈런까지. 켜두기만 해도 성장하는 방치형 홈런 게임">
+<meta property="og:image" content="https://parkbeommin.github.io/homerun-king/og.jpg">
+<meta property="og:url" content="https://parkbeommin.github.io/homerun-king/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0f2a4a;--panel:#16365c;--card:#1e4572;--line:#2c5a8f;--txt:#f4f8ff;--sub:#a9c2e0;--gold:#ffd84a;--gem:#6ff0ff;--red:#ff5a5a;--green:#4cd97b}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:#071629;color:var(--txt);font-family:'Jua',system-ui,sans-serif;overflow:hidden;user-select:none;-webkit-user-select:none;touch-action:manipulation}
+#app{max-width:480px;margin:0 auto;height:100%;height:100dvh;display:flex;flex-direction:column;background:var(--bg);position:relative}
+#hud{padding:8px 10px 6px;padding-top:max(8px,env(safe-area-inset-top));background:linear-gradient(#0b2140,#123257);border-bottom:2px solid #0a1d36}
+.row{display:flex;align-items:center;gap:8px}
+.pill{display:flex;align-items:center;gap:5px;background:#0a1d36;border:2px solid #24507f;border-radius:20px;padding:3px 10px 3px 4px;font-size:16px;min-width:0}
+.pill .ic{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:13px}
+.coin .ic{background:radial-gradient(circle at 35% 35%,#fff3a6,#f2b900 60%,#a87a00)}
+.gem .ic{background:radial-gradient(circle at 35% 35%,#e5ffff,#38d6f0 60%,#137f9e)}
+.tix .ic{background:radial-gradient(circle at 35% 35%,#e6ffe9,#4cd97b 60%,#1e7a3e)}
+#coins{font-size:20px;color:var(--gold)}
+#stadBar{margin-top:6px;font-size:13px;color:var(--sub)}
+#stadName{color:#fff;font-size:15px}
+.bar{flex:1;height:10px;background:#0a1d36;border-radius:6px;overflow:hidden;border:1px solid #24507f}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,#ffb347,#ffd84a);width:0%}
+#fieldWrap{position:relative;flex:0 0 auto;height:39vh;height:39dvh;min-height:230px;max-height:420px;overflow:hidden;cursor:pointer}
+#field{width:100%;height:100%;display:block}
+#tapHint{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);background:rgba(0,0,0,.55);padding:6px 12px;border-radius:14px;font-size:14px;white-space:nowrap;pointer-events:none;animation:bob 1.2s ease-in-out infinite}
+@keyframes bob{50%{transform:translate(-50%,-4px)}}
+#ctrl{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#0b2140;border-top:2px solid #0a1d36;border-bottom:2px solid #0a1d36;font-size:13px;color:var(--sub)}
+.tog{border:none;border-radius:14px;padding:6px 12px;font-family:inherit;font-size:14px;color:#fff;background:#3a4a60;cursor:pointer}
+.tog.on{background:linear-gradient(#3ccf6e,#22a052)}
+#cps{flex:1;text-align:right}
+#feverTag{display:none;background:linear-gradient(90deg,#ff6a00,#ffcc00);color:#3a1600;border-radius:10px;padding:2px 8px;font-size:13px}
+#panel{flex:1;overflow-y:auto;padding:10px;-webkit-overflow-scrolling:touch}
+#tabs{display:flex;background:#0b2140;border-top:2px solid #0a1d36;padding-bottom:env(safe-area-inset-bottom)}
+#tabs button{flex:1;border:none;background:none;color:var(--sub);font-family:inherit;font-size:14px;padding:8px 0 9px;cursor:pointer;position:relative}
+#tabs button b{display:block;font-size:20px;line-height:1.1}
+#tabs button.on{color:#fff;background:linear-gradient(#1b4170,#0b2140)}
+#tabs button .dot{position:absolute;top:6px;right:28%;width:9px;height:9px;border-radius:50%;background:var(--red);display:none}
+.card{background:var(--card);border:2px solid var(--line);border-radius:14px;padding:10px;margin-bottom:8px}
+.stat{display:flex;align-items:center;gap:10px}
+.stat .si{width:42px;height:42px;border-radius:12px;background:#0f2a4a;display:grid;place-items:center;font-size:22px;flex:0 0 auto}
+.stat .sm{flex:1;min-width:0}
+.stat .sn{font-size:16px}
+.stat .sd{font-size:12px;color:var(--sub)}
+.btn{border:none;border-radius:12px;padding:8px 12px;font-family:inherit;font-size:15px;color:#2b1a00;background:linear-gradient(#ffe57a,#f5b700);box-shadow:0 3px 0 #a87a00;cursor:pointer;min-width:84px}
+.btn:active{transform:translateY(2px);box-shadow:0 1px 0 #a87a00}
+.btn[disabled]{filter:grayscale(1) brightness(.7);cursor:default}
+.btn.blue{color:#fff;background:linear-gradient(#5bb8ff,#2b7fd6);box-shadow:0 3px 0 #1a5596}
+.btn.green{color:#fff;background:linear-gradient(#4fe08a,#22a052);box-shadow:0 3px 0 #146b36}
+.btn.red{color:#fff;background:linear-gradient(#ff7a7a,#d63b3b);box-shadow:0 3px 0 #8f2020}
+.btn.gray{color:#fff;background:#4a5a72;box-shadow:0 3px 0 #2a3546}
+.btn.big{font-size:18px;padding:11px 16px;width:100%}
+.btn.sm{font-size:13px;padding:5px 8px;min-width:0}
+.cost{font-size:13px;display:block}
+.h{font-size:15px;color:var(--sub);margin:6px 2px 8px;display:flex;align-items:center;gap:6px}
+.h .r{margin-left:auto}
+.grade{display:inline-block;border-radius:8px;padding:1px 7px;font-size:12px;color:#1b1b1b}
+.eq{display:flex;gap:10px;align-items:center}
+.eq .bimg{width:150px;flex:0 0 auto}
+.bimg svg{width:100%;height:auto;display:block}
+.small{font-size:12px;color:var(--sub)}
+.inv{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.bc{background:#173a63;border:2px solid var(--line);border-radius:12px;padding:7px;font-size:13px;position:relative}
+.bc.on{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset}
+.bc .nm{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bc .act{display:flex;gap:5px;margin-top:5px}
+.bc .act .btn{flex:1}
+.enhRow{display:flex;justify-content:space-between;font-size:14px;margin:4px 0}
+.chk{display:flex;align-items:center;gap:6px;font-size:14px;margin:6px 0}
+.chk input{width:18px;height:18px}
+.shopi{display:flex;align-items:center;gap:10px}
+.shopi .pic{width:52px;height:52px;border-radius:12px;display:grid;place-items:center;font-size:28px;background:#0f2a4a;flex:0 0 auto}
+.odds{font-size:12px;color:var(--sub);margin-top:4px}
+.st{display:flex;align-items:center;gap:10px}
+.st .num{width:30px;height:30px;border-radius:50%;background:#0f2a4a;display:grid;place-items:center;flex:0 0 auto}
+.st.lock{opacity:.5}
+.st.cur{border-color:var(--gold)}
+#modal{position:fixed;inset:0;background:rgba(3,10,22,.72);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px}
+#modal.hidden{display:none}
+.mbox{background:linear-gradient(#1f4878,#15345a);border:3px solid #3d74b3;border-radius:18px;padding:18px;width:100%;max-width:360px;text-align:center;animation:pop .25s ease-out}
+@keyframes pop{from{transform:scale(.8);opacity:0}}
+.mbox h2{margin:0 0 8px;font-weight:normal;font-size:24px}
+.mbox p{margin:6px 0;color:var(--sub);font-size:15px}
+.mbox .bimg{width:220px;margin:10px auto}
+.shake{animation:shk .08s linear infinite}
+@keyframes shk{25%{transform:translate(-3px,1px) rotate(-2deg)}75%{transform:translate(3px,-1px) rotate(2deg)}}
+.res{font-size:30px;margin:6px 0}
+.glow{animation:glw 1s ease-in-out infinite alternate}
+@keyframes glw{to{filter:drop-shadow(0 0 12px #fff)}}
+#toast{position:absolute;top:8px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.7);border-radius:12px;padding:6px 12px;font-size:14px;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;z-index:5}
+#toast.show{opacity:1}
+.mbtns{display:flex;gap:8px;margin-top:12px}
+.mbtns .btn{flex:1}
+.ver{font-size:11px;color:#6d8bb0;text-align:center;margin:10px 0 4px}
+</style>
+<script>
+(function(){var on=location.hostname==='parkbeommin.github.io'&&!/[?&](noga|rec)=1/.test(location.search);window.HRK_GA=on;if(!on)return;
+var s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id=G-MD8F2RFFG0';document.head.appendChild(s);
+window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config','G-MD8F2RFFG0');})();
+</script>
+</head>
+<body>
+<div id="app">
+  <header id="hud">
+    <div class="row">
+      <div class="pill coin"><span class="ic">₩</span><span id="coins">0</span></div>
+      <div class="pill gem"><span class="ic">◆</span><span id="gems">0</span></div>
+      <div class="pill tix" title="강화 보호권"><span class="ic">🛡</span><span id="tix">0</span></div>
+      <span id="feverTag">FEVER x2</span>
+    </div>
+    <div id="stadBar" class="row">
+      <span id="stadName">동네 공터</span>
+      <span id="fenceTxt">펜스 45m</span>
+      <div class="bar"><i id="stadProg"></i></div>
+      <span id="stadHR">0/10</span>
+    </div>
+  </header>
+  <div id="fieldWrap">
+    <canvas id="field"></canvas>
+    <div id="tapHint">공이 원에 딱 맞을 때 화면을 탭!</div>
+    <div id="toast"></div>
+  </div>
+  <div id="ctrl">
+    <button id="autoBtn" class="tog on">자동 타격 ON</button>
+    <span id="cps">초당 0</span>
+  </div>
+  <section id="panel"></section>
+  <nav id="tabs">
+    <button data-t="batter" class="on"><b>🧢</b>타자<span class="dot"></span></button>
+    <button data-t="bats"><b>🏏</b>방망이<span class="dot"></span></button>
+    <button data-t="shop"><b>🛒</b>상점<span class="dot"></span></button>
+    <button data-t="stadium"><b>🏟</b>구장<span class="dot"></span></button>
+  </nav>
+</div>
+<div id="modal" class="hidden"></div>
+<script src="core.js?v=0.1.0"></script>
+<script src="game.js?v=0.1.0"></script>
+</body>
+</html>
