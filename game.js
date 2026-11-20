@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const H = window.HR;
-  const VERSION = 'v0.4 베타';
+  const VERSION = 'v0.5 베타';
   const SAVE_KEY = 'hrk_save_v1';
   const fmt = H.fmt;
   const $ = (id) => document.getElementById(id);
@@ -122,6 +122,24 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   function preloadArt() {
     const a = new Image(); a.onload = () => { BAT_ART = true; lastHTML = ''; markDirty(); setTabIcon(); }; a.src = 'assets/bats/g0_power.webp';
     const u = new Image(); u.onload = () => { UI_ART = true; lastHTML = ''; markDirty(); }; u.src = 'assets/ui/shop_wood.webp';
+  }
+  // 스프라이트·배경 (assets/sprites.json 이 있으면 사용, 없으면 코드 그림)
+  const ART = { bg: {}, out: {}, req: {}, pitcher: null, batter: null, cal: null };
+  function lazyImg(key, src, slot, idx) {
+    if (ART.req[key]) return; ART.req[key] = 1;
+    const im = new Image(); im.onload = () => { slot[idx] = im; }; im.src = src;
+  }
+  function getBg(i) { const n = Math.min(i, 8) + (i >= 10 ? 0 : 0); const k = i >= 10 ? 8 : i; lazyImg('bg' + k, 'assets/bg/bg_s' + (k + 1) + '.webp', ART.bg, k); return ART.bg[k]; }
+  function getOut(t) { lazyImg('out' + t, 'assets/bg/out_' + t + '.webp', ART.out, t); return ART.out[t]; }
+  function preloadSprites() {
+    fetch('assets/sprites.json?v=' + VERSION).then((r) => r.ok ? r.json() : null).then((cal) => {
+      if (!cal) return; ART.cal = cal;
+      for (const who of ['pitcher', 'batter']) {
+        const c = cal[who]; if (!c) continue;
+        const frames = []; let left = c.n;
+        for (let i = 0; i < c.n; i++) { const im = new Image(); im.onload = () => { frames[i] = im; if (--left === 0) ART[who] = frames; }; im.src = 'assets/sprites/' + who + '_' + i + '.webp'; }
+      }
+    }).catch(() => {});
   }
   function setTabIcon() { document.querySelector('#tabs [data-t="bats"] b').innerHTML = '<span style="display:inline-block;width:34px">' + batSVG({ g: 4, t: 'power', e: 0 }) + '</span>'; }
   function gradeTag(g) { const G = H.GRADES[g]; return `<span class="grade" style="background:${G.color}">${G.name}</span>`; }
@@ -435,19 +453,26 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       }
     }
     if (S.moon) { ctx.fillStyle = '#4b8bd6'; ctx.beginPath(); ctx.arc(W * 0.82, hy * 0.3, 18, 0, 7); ctx.fill(); }
+    // 외야 배경 그림 (있으면)
+    const bgImg = getBg(st.stadium);
+    if (bgImg) {
+      const sc2 = Math.max(W / bgImg.width, (hy + 2) / bgImg.height);
+      const dw = bgImg.width * sc2, dh = bgImg.height * sc2;
+      ctx.drawImage(bgImg, (W - dw) / 2, hy + 2 - dh, dw, dh);
+      if (fever) { ctx.fillStyle = 'rgba(255,140,40,.25)'; ctx.fillRect(0, 0, W, hy); }
+    }
     // 외야 관중석
-    const standH = Math.max(26, hy * 0.42);
-    ctx.fillStyle = S.moon ? '#2b2f3e' : '#2c3b58';
-    ctx.fillRect(-20, hy - standH, W + 40, standH);
+    const standH = bgImg ? 0 : Math.max(26, hy * 0.42);
+    if (standH) { ctx.fillStyle = S.moon ? '#2b2f3e' : '#2c3b58'; ctx.fillRect(-20, hy - standH, W + 40, standH); }
     const cols = ['#ff6b6b', '#ffd84a', '#5bb8ff', '#ffffff', '#4cd97b', '#ff9f55'];
     let k = 0;
-    for (let y = hy - standH + 4; y < hy - 8; y += 6) for (let x = -4 + ((y | 0) % 2) * 3; x < W + 4; x += 5) { ctx.fillStyle = cols[(k++ * 7 + (y | 0)) % cols.length]; ctx.globalAlpha = 0.75; ctx.fillRect(x, y, 3, 3); }
+    if (standH) for (let y = hy - standH + 4; y < hy - 8; y += 6) for (let x = -4 + ((y | 0) % 2) * 3; x < W + 4; x += 5) { ctx.fillStyle = cols[(k++ * 7 + (y | 0)) % cols.length]; ctx.globalAlpha = 0.75; ctx.fillRect(x, y, 3, 3); }
     ctx.globalAlpha = 1;
     // 펜스 + 전광판
-    ctx.fillStyle = S.moon ? '#5a5f70' : '#1f6b3a'; ctx.fillRect(-20, hy - 7, W + 40, 7);
-    ctx.fillStyle = '#ffd84a'; ctx.fillRect(-20, hy - 7, W + 40, 1.5);
+    if (!bgImg) { ctx.fillStyle = S.moon ? '#5a5f70' : '#1f6b3a'; ctx.fillRect(-20, hy - 7, W + 40, 7); ctx.fillStyle = '#ffd84a'; ctx.fillRect(-20, hy - 7, W + 40, 1.5); }
+    else { ctx.fillStyle = 'rgba(0,0,0,.35)'; roundRect(W / 2 - 34, hy - 15, 68, 14, 5); ctx.fill(); }
     ctx.font = '10px Jua'; ctx.fillStyle = '#fff'; ctx.textAlign = 'center';
-    ctx.fillText(S.out ? '목표 ' + H.fmtDist(S.fence) : S.fence + 'm', W / 2, hy - 0.5);
+    ctx.fillText(S.out ? '목표 ' + H.fmtDist(S.fence) : S.fence + 'm', W / 2, hy - (bgImg ? 4.5 : 0.5));
     // 잔디
     const gg = ctx.createLinearGradient(0, hy, 0, Hh);
     gg.addColorStop(0, shade(S.grass, -10)); gg.addColorStop(1, shade(S.grass, 18));
@@ -585,6 +610,14 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   function drawPitcherFront() {
     const base = proj(0, 0, 18.4), s = base[2] * 1.35;
     const x = base[0], gy = base[1], h = 1.9 * s;
+    if (ART.pitcher) {
+      let fi = 0;
+      if (G.phase === 'windup') { const u = G.t / (0.8 / G.sp); fi = u < 0.3 ? 0 : u < 0.68 ? 1 : 2; }
+      else if (G.phase === 'pitch' || G.phase === 'call' || G.phase === 'launch') fi = G.phase === 'pitch' && G.t < 0.04 ? 2 : 3;
+      const im = ART.pitcher[fi], c = ART.cal.pitcher, dh = h * (c.scale || 1.25), dw = dh * im.width / im.height;
+      ctx.drawImage(im, x - dw * (c.footX || 0.5), gy - dh * (c.footY || 1), dw, dh);
+      return;
+    }
     let leg = 0, arm = 0.2;
     if (G.phase === 'windup') { const u = G.t / (0.8 / G.sp); leg = Math.sin(Math.min(1, u * 1.3) * Math.PI) * 1; arm = -0.3 - u * 2.2; }
     else if (G.phase === 'pitch') { const u = Math.min(1, G.t / 0.12); arm = -2.5 + u * 4.2; }
@@ -619,11 +652,12 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   function nrm(v) { const l = Math.hypot(v.x, v.y, v.z) || 1; return { x: v.x / l, y: v.y / l, z: v.z / l }; }
   function mix(a, b, t) { return nrm({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, z: a.z + (b.z - a.z) * t }); }
   const COCK = nrm({ x: -0.15, y: 0.92, z: -0.38 });
+  const COCK_SPR = nrm({ x: 0.3, y: 0.92, z: -0.25 });
   const FOLLOW = nrm({ x: -0.55, y: 0.62, z: 0.45 });
   function batDir(k, hands) {
     const p = G.pitch, tg = p ? pitchTarget(p) : { x: 0, y: ZC };
     const hit = nrm({ x: tg.x + 0.05 - hands.x, y: tg.y - hands.y, z: 0.05 - hands.z });
-    if (k <= 1) return mix(COCK, hit, k * k);
+    if (k <= 1) return mix(ART.batter ? COCK_SPR : COCK, hit, k * k);
     const e = 1 - Math.pow(1 - Math.min(1, k - 1), 2);
     const mid = nrm({ x: 0.35, y: 0.1, z: 0.9 });
     return e < 0.5 ? mix(hit, mid, e * 2) : mix(mid, FOLLOW, (e - 0.5) * 2);
@@ -642,7 +676,17 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     // 몸통 회전량
     const twist = Math.max(0, Math.min(1, kk)) * 0.35;
     const bw = 0.5 * s;
+    const SPR = ART.batter;
+    let handScr = null;
+    if (SPR) {
+      const c = ART.cal.batter, fi = kk < 0.55 ? 0 : kk < 1.45 ? 1 : 2, im = SPR[fi];
+      const dh = 1.85 * s * (c.scale || 1.1), dw = dh * im.width / im.height;
+      const x0 = f[0] - dw * (c.footX || 0.5), y0 = f[1] - dh * (c.footY || 1);
+      ctx.drawImage(im, x0, y0, dw, dh);
+      handScr = [x0 + dw * c.hands[fi][0], y0 + dh * c.hands[fi][1]];
+    }
     // 다리 (화면 아래로 잘림)
+    if (!SPR) {
     ctx.fillStyle = '#d9e2ef';
     roundRect(wa[0] - bw * 0.42, wa[1], bw * 0.36, Hh, bw * 0.1); ctx.fill();
     roundRect(wa[0] + bw * 0.06, wa[1], bw * 0.36, Hh, bw * 0.1); ctx.fill();
@@ -657,6 +701,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     ctx.fillStyle = '#1d4f91'; ctx.font = Math.round(bw * 0.55) + 'px Jua'; ctx.textAlign = 'center';
     ctx.fillText('7', (sh[0] + wa[0]) / 2 + twist * bw * 0.15, (sh[1] + wa[1]) / 2 + bw * 0.2);
     ctx.fillStyle = '#1d4f91'; ctx.fillRect(wa[0] - bw * 0.42, wa[1] - bw * 0.02, bw * 0.84, bw * 0.08);
+    }
     // 방망이
     const hands = { x: bx + 0.22 + twist * 0.2, y: 1.25 - Math.min(1, kk) * 0.28, z: bz - 0.05 + twist * 0.15 };
     const L = 0.86;
@@ -664,6 +709,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     const tip = { x: hands.x + dir.x * L, y: hands.y + dir.y * L, z: hands.z + dir.z * L };
     const knob = { x: hands.x - dir.x * 0.08, y: hands.y - dir.y * 0.08, z: hands.z - dir.z * 0.08 };
     const ph = proj(hands.x, hands.y, hands.z), pt = proj(tip.x, tip.y, tip.z), pk = proj(knob.x, knob.y, knob.z);
+    if (handScr) { const ox = handScr[0] - ph[0], oy = handScr[1] - ph[1]; for (const q of [ph, pt, pk]) { q[0] += ox; q[1] += oy; } }
     // 스윙 궤적
     if (G.swingT >= 0 && G.phase === 'pitch') {
       G.batTrail.push([ph[0], ph[1], pt[0], pt[1]]); if (G.batTrail.length > 7) G.batTrail.shift();
@@ -689,6 +735,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     ctx.arc(pt[0], pt[1], wTip / 2, ang + Math.PI / 2, ang - Math.PI / 2, true);
     ctx.lineTo(pk[0] - nx * wH / 2, pk[1] - ny * wH / 2);
     ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0;
+    if (SPR) return;
     // 팔
     ctx.strokeStyle = '#ffd7b0'; ctx.lineCap = 'round'; ctx.lineWidth = Math.max(3, bw * 0.16);
     ctx.beginPath(); ctx.moveTo(sh[0] - bw * 0.4 + twist * bw * 0.3, sh[1] + bw * 0.08); ctx.lineTo(ph[0], ph[1]); ctx.stroke();
@@ -730,7 +777,11 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       }
     }
     if (S.dome) { ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 2; for (let i = 1; i < 6; i++) { ctx.beginPath(); ctx.ellipse(W / 2, gy * 1.2, W * 0.9, gy * (0.2 * i), 0, Math.PI, 0); ctx.stroke(); } }
-    if (S.out && S.out !== 'parking') drawOutBack(S, gy);
+    const outImg = S.out ? getOut(S.out) : null;
+    if (outImg) {
+      const sc3 = Math.max(W / outImg.width, gy / outImg.height), dw = outImg.width * sc3, dh = outImg.height * sc3;
+      ctx.drawImage(outImg, (W - dw) / 2, gy - dh, dw, dh);
+    } else if (S.out && S.out !== 'parking') drawOutBack(S, gy);
     else if (!S.dome) {
       ctx.fillStyle = S.moon ? '#3a3d4a' : S.night ? '#16224a' : 'rgba(80,150,90,.55)';
       for (let i = 0; i < 5; i++) {
@@ -1015,7 +1066,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     for (const k of Object.keys(H.STATS)) {
       const S = H.STATS[k], lv = st.stats[k], max = lv >= S.max;
       const { c, n } = bulkCost(k);
-      h += `<div class="card stat"><div class="si">${S.icon}</div><div class="sm"><div class="sn">${S.name} <span class="small">Lv.${lv}${S.max < 999 ? ' / ' + S.max : ''}</span></div>
+      h += `<div class="card stat"><div class="si">${uiIcon('stat_' + k, S.icon)}</div><div class="sm"><div class="sn">${S.name} <span class="small">Lv.${lv}${S.max < 999 ? ' / ' + S.max : ''}</span></div>
       <div class="sd">${S.desc(lv)}${max ? '' : ' → ' + S.desc(lv + n).split(' ').pop()}</div></div>
       <button class="btn" data-stat="${k}" ${max || st.coins < c ? 'disabled' : ''}>${max ? 'MAX' : '강화' + (n > 1 ? ' x' + n : '')}<span class="cost">₩ ${max ? '-' : fmt(c)}</span></button></div>`;
     }
@@ -1077,7 +1128,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   function renderStadium() {
     const can = H.canRetire(st), g = H.honorGain(st);
     let h = `<div class="h">은퇴 <span class="r small">은퇴 ${st.retires || 0}회</span></div><div class="card">
-      <div class="row" style="justify-content:space-between"><div><div style="font-size:16px">🎖 명예 ${fmt(st.honor || 0)}</div>
+      <div class="row" style="justify-content:space-between"><div><div style="font-size:16px;display:flex;align-items:center;gap:4px"><span class="mini">${uiIcon('stat_honor', '🎖')}</span> 명예 ${fmt(st.honor || 0)}</div>
       <div class="small">명예 1점마다 비거리·코인 +${Math.round(H.HONOR_PCT * 100)}% · 지금 x${fmt(H.honorMult(st), 2)}</div></div>
       <button class="btn ${can ? '' : 'gray'}" id="retireBtn" ${can ? '' : 'disabled'}>은퇴하기<span class="cost">${can ? '명예 +' + fmt(g) : '6구장부터'}</span></button></div>
       <div class="small" style="margin-top:6px">${can ? '더 먼 구장까지 갈수록 받는 명예가 커져요. 방망이·젬·보호권은 그대로 남아요.' : '6구장(2군 구장)이 열리면 은퇴할 수 있어요. 은퇴하면 처음부터 다시 시작하지만 명예 보너스로 훨씬 빨리 올라가요.'}</div></div>
@@ -1301,7 +1352,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   window.addEventListener('pagehide', save);
 
   // 방망이 탭 아이콘
-  setTabIcon(); preloadArt();
+  setTabIcon(); preloadArt(); preloadSprites();
 
   // ---------- 시작 ----------
   const had = load();
