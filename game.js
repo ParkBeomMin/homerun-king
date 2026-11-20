@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const H = window.HR;
-  const VERSION = 'v0.2 베타';
+  const VERSION = 'v0.2.1 베타';
   const SAVE_KEY = 'hrk_save_v1';
   const fmt = H.fmt;
   const $ = (id) => document.getElementById(id);
@@ -916,7 +916,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   }
 
   function renderBatter() {
-    let h = `<div class="h">타자 능력치 <span class="r"><button class="btn sm ${bulk === 1 ? '' : 'gray'}" data-bulk="1">x1</button> <button class="btn sm ${bulk === 10 ? '' : 'gray'}" data-bulk="10">x10</button> <button class="btn sm ${bulk === 'max' ? '' : 'gray'}" data-bulk="max">MAX</button></span></div>`;
+    let h = `<div class="h">타자 능력치 <button class="btn sm blue" id="infoBtn" style="margin-left:2px">📊 타격 정보</button><span class="r"><button class="btn sm ${bulk === 1 ? '' : 'gray'}" data-bulk="1">x1</button> <button class="btn sm ${bulk === 10 ? '' : 'gray'}" data-bulk="10">x10</button> <button class="btn sm ${bulk === 'max' ? '' : 'gray'}" data-bulk="max">MAX</button></span></div>`;
     for (const k of Object.keys(H.STATS)) {
       const S = H.STATS[k], lv = st.stats[k], max = lv >= S.max;
       const { c, n } = bulkCost(k);
@@ -925,7 +925,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       <button class="btn" data-stat="${k}" ${max || st.coins < c ? 'disabled' : ''}>${max ? 'MAX' : '강화' + (n > 1 ? ' x' + n : '')}<span class="cost">₩ ${max ? '-' : fmt(c)}</span></button></div>`;
     }
     const b = H.equipped(st);
-    h += `<div class="card small">현재 홈런 확률(자동) 약 <b style="color:#fff">${Math.round(H.homerunRate(st, 300) * 100)}%</b> · 방망이 파워 x${fmt(H.batPower(b), 2)} · 퍼펙트 판정 ±${Math.round(H.perfectWindow(st) * 1000)}ms<br>타이밍 원이 작은 원에 겹칠 때 탭하면 PERFECT. 직접 친 퍼펙트는 비거리 +15%, 코인 +20%예요.</div>`;
+    void b;
     return h;
   }
 
@@ -1015,6 +1015,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     }
     if (t.id === 'useTicket') { st.useTicket = t.checked; return; }
     if (t.id === 'enhBtn') return doEnhance();
+    if (t.id === 'infoBtn') { SFX.click(); return infoModal(); }
     if (d.merge) {
       const r = H.merge(st, +d.merge);
       if (r.ok) { SFX.box(); track('merge', { g: r.bat.g }); revealModal(r.bat, '합성 성공!'); }
@@ -1107,6 +1108,33 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       const ag = $('again'); if (ag) ag.onclick = () => { closeModal(); doEnhance(); };
       cpsAt = 0; updateHUD(); renderPanel(); save();
     }, 750);
+  }
+
+  function infoModal() {
+    const b = H.equipped(st), S = H.STADIUMS[st.stadium];
+    const perfD = 32 * H.powerMult(st.stats.power) * H.batPower(b) * 1.5 / H.resistOf(st.stadium);
+    const sim = H.simAuto(st, 500, 777);
+    const pct = (v) => Math.round(v * 100) + '%';
+    const row = (k, v, hl) => `<div class="ir"><span>${k}</span><b${hl ? ' class="hl"' : ''}>${v}</b></div>`;
+    openModal(`<h2>📊 타격 정보</h2>
+      <div class="isec">타격</div>
+      ${row('퍼펙트 예상 비거리', perfD.toFixed(1) + 'm', perfD >= S.fence)}
+      ${row('지금 구장 펜스', S.fence + 'm')}
+      ${row('방망이 파워', 'x' + fmt(H.batPower(b), 2))}
+      ${row('퍼펙트 판정 범위', '±' + Math.round(H.perfectWindow(st) * 1000) + 'ms')}
+      ${row('특대 홈런 (퍼펙트 시)', pct(H.specialChance(st)))}
+      <div class="isec">자동 타격</div>
+      ${row('홈런 확률 (맞힌 타구 중)', pct(sim.hrRate), true)}
+      ${row('퍼펙트 확률', pct(H.autoPerfect(st)))}
+      ${row('볼 골라내기', pct(H.eyeOf(st)))}
+      ${row('초당 코인', fmt(sim.cps))}
+      <div class="isec">보너스</div>
+      ${row('코인 배율', '인기 x' + fmt(H.fameMult(st.stats.fame), 2) + ' · 구장 x' + fmt(H.coinMultOf(st.stadium), 1))}
+      ${row('선구안 콤보', st.eyeCombo ? '+' + st.eyeCombo * 10 + '% 비거리' : '없음')}
+      ${row('직접 타격', '퍼펙트 비거리 +15%, 코인 +20%')}
+      <div class="isec">팁</div>
+      <ul class="itips"><li>공에 붙은 링이 노랗게 바뀔 때 탭하면 PERFECT</li><li>존 밖으로 빠지는 볼은 참으면 선구안 콤보가 쌓여요</li><li>볼넷 다음 공은 한가운데 실투예요</li></ul>
+      <div class="mbtns"><button class="btn big" data-close>닫기</button></div>`);
   }
 
   function clearModal() {
