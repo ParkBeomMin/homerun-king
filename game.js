@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const H = window.HR;
-  const VERSION = 'v0.7.1 베타';
+  const VERSION = 'v0.8 베타';
   const SAVE_KEY = 'hrk_save_v1';
   const fmt = H.fmt;
   const $ = (id) => document.getElementById(id);
@@ -24,6 +24,8 @@
         st.stats = Object.assign(base.stats, o.stats || {});
         if (!st.bats || !st.bats.length) { const b = H.newBat(0, 'power'); st.bats = [b]; st.equip = b.id; }
         if (!st.bats.find((b) => b.id === st.equip)) st.equip = st.bats[0].id;
+        if (o.tut == null && (st.totalHits || 0) > 30) st.tut = 99;
+        st.bats.forEach((b) => H.markDex(st, b));
         return true;
       }
     } catch (e) { /* 손상된 저장은 새로 시작 */ }
@@ -161,7 +163,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   function preloadSprites() {
     fetch('assets/sprites.json?v=' + VERSION).then((r) => r.ok ? r.json() : null).then((cal) => {
       if (!cal) return; ART.cal = cal;
-      for (const who of ['pitcher', 'batter']) {
+      for (const who of ['pitcher', 'batter', 'side', 'boss']) {
         const c = cal[who]; if (!c) continue;
         const frames = []; let left = c.n;
         for (let i = 0; i < c.n; i++) { const im = new Image(); im.onload = () => { frames[i] = im; if (--left === 0) ART[who] = frames; }; im.src = 'assets/sprites/' + who + '_' + i + '.webp'; }
@@ -195,6 +197,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     camMin: -4, camMax: 21, camFrom: null, flight: 1.4,
     ballX: 0, ballY: 0, ballVis: false, trail: [], trail1: [], batTrail: [], impact: null, launch: null,
     fx: [], texts: [], manualUntil: 0, fever: 0, clouds: [], crowdSeed: Math.random() * 1000,
+    mode: 'normal', derby: null, boss: null,
   };
   for (let i = 0; i < 6; i++) G.clouds.push({ x: Math.random(), y: 0.08 + Math.random() * 0.25, s: 0.6 + Math.random() * 0.8 });
 
@@ -204,10 +207,54 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
 
   function startPitch() {
     G.view = '1p'; G.phase = 'windup'; G.t = 0;
-    G.pitch = H.genPitch(st);
+    G.pitch = H.genPitch(st, Math.random, { strikeOnly: G.mode === 'derby', boss: G.mode === 'boss' });
     G.swingT = -1; G.swingQ = null; G.manual = false; G.autoTake = false; G.pendingQ = null;
     G.result = null; G.call = null; G.ballVis = false; G.trail = []; G.trail1 = []; G.batTrail = []; G.impact = null; G.launch = null;
     G.sp = H.speedMult(st.stats.speed); G.zoom = 0;
+  }
+
+  // 관중 점 패턴 (한 번 그려서 재사용)
+  const PAT = {};
+  function crowdPattern(sx2, sy2, sz) {
+    const k = sx2 + '_' + sy2; if (PAT[k]) return PAT[k];
+    const c = document.createElement('canvas'); c.width = sx2 * 12; c.height = sy2 * 6; const x2 = c.getContext('2d');
+    const cols = ['#ff6b6b', '#ffd84a', '#5bb8ff', '#ffffff', '#4cd97b', '#ff9f55']; let n = 0;
+    for (let y = 0; y < 6; y++) for (let x = 0; x < 12; x++) { x2.fillStyle = cols[(n++ * 7 + y * 3) % cols.length]; x2.fillRect(x * sx2 + (y % 2) * (sx2 >> 1), y * sy2, sz, sz + 1); }
+    PAT[k] = ctx.createPattern(c, 'repeat'); return PAT[k];
+  }
+
+  // ---------- 모드: 홈런 더비 / 보스전 ----------
+  function startDerby() {
+    const ranked = H.derbyCanRank(st);
+    G.mode = 'derby'; G.derby = { n: 0, hr: 0, best: 0, ranked };
+    st.count = { b: 0, s: 0 }; st.eyeCombo = 0;
+    closeModal(); afterMove(); G.manualUntil = nowS() + 999;
+    toast(ranked ? '오늘의 랭킹 도전! 스트라이크만 와요. 10구 안에 최대한 많이!' : '연습 모드 (랭킹 반영은 하루 1번)');
+    track('derby_start', { ranked: ranked ? 1 : 0 });
+  }
+  function startBoss(i) {
+    if (st.stadium !== i) H.moveStadium(st, i);
+    G.mode = 'boss'; G.boss = { i, hr: 0, outs: 0 };
+    st.count = { b: 0, s: 0 }; st.eyeCombo = 0;
+    closeModal(); afterMove();
+    popText('VS ' + H.BOSSES[i].name, '#ffd0d0', 26, true);
+    toast('보스전! 아웃 3개 전에 홈런 ' + H.BOSS_HR + '개를 쳐라');
+    track('boss_start', { i });
+  }
+  function pitchDone(o) {
+    if (G.mode === 'derby') {
+      const D = G.derby; D.n++;
+      if (o.hit) { if (o.hit.hr) D.hr++; if (o.hit.d > D.best) D.best = o.hit.d; }
+      if (D.n >= H.DERBY_N) { const fin = Object.assign({}, D); G.mode = 'normal'; G.derby = null; setTimeout(() => queueModal(() => derbyEndModal(fin)), 900); }
+    } else if (G.mode === 'boss') {
+      const B = G.boss;
+      if (o.hit) { if (o.hit.hr) B.hr++; else { B.outs++; popText(o.hit.quality === 'weak' ? '땅볼 아웃' : '뜬공 아웃', '#ffb0b0', 26, false, 0.6); } }
+      if (o.call === 'strikeout') B.outs++;
+      if (B.hr >= H.BOSS_HR || B.outs >= H.BOSS_OUTS) {
+        const win = B.hr >= H.BOSS_HR, i = B.i; G.mode = 'normal'; G.boss = null;
+        setTimeout(() => queueModal(() => bossEndModal(win, i)), 900);
+      }
+    }
   }
 
   // ---------- 1인칭 투영 ----------
@@ -290,6 +337,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     else if (res.ev === 'swingmiss') { SFX.mitt(1); VOICE.play('strike', 0.75); popText('헛스윙 스트라이크', '#ffb0b0', 26); }
     else if (res.ev === 'walk') { SFX.mitt(0.6); VOICE.play('walk', 0.85); SFX.coin(); popText('볼넷!', '#7fffd4', 40, true); floatCoin('+' + fmt(res.coins)); toast('볼넷 보너스! 다음 공은 한가운데 실투'); vib(25); track('walk', {}); }
     else if (res.ev === 'strikeout') { SFX.mitt(1); VOICE.play('strikeout', 0.85); SFX.out(); popText(res.looking ? '루킹 삼진' : '삼진 아웃', '#ff7a7a', 36, true); G.shake = 0.12; vib([60, 40, 60]); track('strikeout', {}); }
+    pitchDone({ call: res.ev });
     updateHUD(); markDirty();
   }
 
@@ -313,7 +361,8 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     floatCoin('+' + fmt(r.coins));
     SFX.coin();
     if (ev.gems) toast('◆ 젬 +' + ev.gems + (r.special ? ' (특대 홈런 보너스)' : ''));
-    if (ev.cleared) { track('stadium_clear', { s: st.stadium + 1 }); setTimeout(() => clearModal(), 700); }
+    if (ev.cleared && G.mode === 'normal') { track('stadium_clear', { s: st.stadium + 1 }); setTimeout(() => clearModal(), 700); }
+    pitchDone({ hit: r });
     updateHUD(); markDirty();
   }
 
@@ -353,7 +402,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     if (G.slow > 0) { G.slow -= rdt; dt = rdt * 0.3; }
     G.t += dt;
     const now = nowS();
-    const auto = st.auto && now > G.manualUntil;
+    const auto = st.auto && now > G.manualUntil && G.mode !== 'derby';
     const p = G.pitch;
     if (G.zoom > 0) G.zoom = Math.max(0, G.zoom - dt * 1.6);
 
@@ -496,7 +545,8 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     if (standH) { ctx.fillStyle = S.moon ? '#2b2f3e' : '#2c3b58'; ctx.fillRect(-20, hy - standH, W + 40, standH); }
     const cols = ['#ff6b6b', '#ffd84a', '#5bb8ff', '#ffffff', '#4cd97b', '#ff9f55'];
     let k = 0;
-    if (standH) for (let y = hy - standH + 4; y < hy - 8; y += 6) for (let x = -4 + ((y | 0) % 2) * 3; x < W + 4; x += 5) { ctx.fillStyle = cols[(k++ * 7 + (y | 0)) % cols.length]; ctx.globalAlpha = 0.75; ctx.fillRect(x, y, 3, 3); }
+    void cols; void k;
+    if (standH) { ctx.globalAlpha = 0.75; ctx.fillStyle = crowdPattern(5, 6, 3); ctx.fillRect(-4, hy - standH + 4, W + 8, standH - 12); }
     ctx.globalAlpha = 1;
     // 펜스 + 전광판
     if (!bgImg) { ctx.fillStyle = S.moon ? '#5a5f70' : '#1f6b3a'; ctx.fillRect(-20, hy - 7, W + 40, 7); ctx.fillStyle = '#ffd84a'; ctx.fillRect(-20, hy - 7, W + 40, 1.5); }
@@ -615,7 +665,24 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     drawCount();
   }
 
+  function drawModeBanner() {
+    const p = G.pitch;
+    if (p && (G.phase === 'pitch' || G.phase === 'call') && p.type && !p.meat) {
+      const lbl = H.PITCH_TYPES[p.type].name + ' ' + p.kmh + 'km/h';
+      ctx.font = '13px Jua'; ctx.textAlign = 'center'; const tw = ctx.measureText(lbl).width + 16;
+      ctx.fillStyle = 'rgba(5,15,35,.6)'; roundRect(W / 2 - tw / 2, 36, tw, 20, 8); ctx.fill();
+      ctx.fillStyle = p.type === 'fast' ? '#ffd0a0' : '#c8b4ff'; ctx.fillText(lbl, W / 2, 50);
+    }
+    if (G.mode === 'normal') return;
+    let txt;
+    if (G.mode === 'derby') txt = '⚾ 홈런 더비 ' + Math.min(H.DERBY_N, G.derby.n + 1) + '/' + H.DERBY_N + ' · 홈런 ' + G.derby.hr;
+    else txt = 'VS ' + H.BOSSES[G.boss.i].name + ' · 홈런 ' + G.boss.hr + '/' + H.BOSS_HR + ' · 아웃 ' + '●'.repeat(G.boss.outs) + '○'.repeat(H.BOSS_OUTS - G.boss.outs);
+    ctx.font = '14px Jua'; ctx.textAlign = 'left'; const w2 = ctx.measureText(txt).width + 18;
+    ctx.fillStyle = G.mode === 'boss' ? 'rgba(120,20,30,.85)' : 'rgba(20,70,140,.85)'; roundRect(8, 10, Math.min(w2, W - 112), 24, 9); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.fillText(txt, 17, 27, W - 130);
+  }
   function drawCount() {
+    drawModeBanner();
     const c = st.count || { b: 0, s: 0 };
     const x = W - 96, y = 10;
     ctx.fillStyle = 'rgba(5,15,30,.6)'; roundRect(x, y, 86, 42, 9); ctx.fill();
@@ -640,6 +707,12 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   function drawPitcherFront() {
     const base = proj(0, 0, 18.4), s = base[2] * 1.35;
     const x = base[0], gy = base[1], h = 1.9 * s;
+    if (G.mode === 'boss' && ART.boss) {
+      const im = ART.boss[H.BOSSES[G.boss.i].spr], dh = h * 1.2, dw = dh * im.width / im.height;
+      const bob = G.phase === 'windup' ? Math.sin(G.t * 14) * 2 : 0;
+      ctx.drawImage(im, x - dw / 2, gy - dh + bob, dw, dh);
+      return;
+    }
     if (ART.pitcher) {
       let fi = 0;
       if (G.phase === 'windup') { const u = G.t / (0.8 / G.sp); fi = u < 0.3 ? 0 : u < 0.68 ? 1 : 2; }
@@ -828,13 +901,9 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       const cols = ['#ff6b6b', '#ffd84a', '#5bb8ff', '#ffffff', '#4cd97b', '#ff9f55'];
       let k = 0;
       const jump = G.phase === 'result' && G.result && G.result.hr ? Math.sin(performance.now() / 60) * 2 : 0;
-      for (let y = standTop + 8; y < gy - 6; y += 9) {
-        const x0 = fxp + 20 * (1 - (y - standTop) / (gy - standTop)) + 6;
-        for (let x = x0; x < Math.min(W + 10, sEnd - 4); x += 8) {
-          ctx.fillStyle = cols[(k++ * 7 + Math.floor(y)) % cols.length];
-          ctx.fillRect(x, y + ((k % 2) ? jump : -jump), 4, 5);
-        }
-      }
+      void cols; void k;
+      ctx.save(); ctx.beginPath(); ctx.moveTo(fxp + 6, gy - 6); ctx.lineTo(fxp + 24, standTop + 8); ctx.lineTo(sEnd - 4, standTop - 2); ctx.lineTo(sEnd - 4, gy - 6); ctx.clip();
+      ctx.translate(0, jump); ctx.fillStyle = crowdPattern(8, 9, 4); ctx.fillRect(fxp, standTop - 12, Math.min(W + 20, sEnd) - fxp, gy - standTop + 12); ctx.restore();
       const fh = Math.max(16, 3.2 * ys);
       ctx.fillStyle = S.moon ? '#5a5f70' : '#1f6b3a'; ctx.fillRect(fxp - 3, gy - fh, 7, fh);
       ctx.fillStyle = '#ffd84a'; ctx.fillRect(fxp - 3, gy - fh, 7, 3);
@@ -866,9 +935,16 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       ctx.font = '10px Jua'; ctx.fillText('최고', x + 2, gy - 30);
     }
     const ph = Math.max(18, 1.9 * sc * 2.1);
-    drawPitcherSide(sx(18.4), gy, ph);
-    drawCatcherSide(sx(-1.3), gy, ph * 0.8);
-    drawBatterSide(sx(-0.55), gy, ph);
+    if (ART.side) {
+      const sd = (im, x, h) => { const w = h * im.width / im.height; ctx.drawImage(im, x - w / 2, gy - h + 2, w, h); };
+      if (G.mode === 'boss' && ART.boss) sd(ART.boss[H.BOSSES[G.boss.i].spr], sx(18.4), ph * 1.25); else sd(ART.side[1], sx(18.4), ph * 1.25);
+      sd(ART.side[2], sx(-1.6), ph * 1.25);
+      sd(ART.side[0], sx(-0.4), ph * 1.3);
+    } else {
+      drawPitcherSide(sx(18.4), gy, ph);
+      drawCatcherSide(sx(-1.3), gy, ph * 0.8);
+      drawBatterSide(sx(-0.55), gy, ph);
+    }
     if (G.ballVis) {
       const bs = Math.max(3, Math.min(6, 0.12 * sc * 2));
       const fys = flightYS();
@@ -1044,6 +1120,8 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     if (now - cpsAt > 3000) { lastCPS = H.expectedCPS(st, 150); cpsAt = now; }
     $('cps').textContent = '자동 초당 ' + fmt(lastCPS) + ' · 직접 치면 +20%';
     $('feverTag').style.display = G.fever > nowS() ? 'inline-block' : 'none';
+    $('wkTag').style.display = H.isWeekend() ? 'inline-block' : 'none';
+    tutCheck();
     // 탭 알림 점
     const dots = document.querySelectorAll('#tabs .dot');
     const canStat = Object.keys(H.STATS).some((k) => st.stats[k] < H.STATS[k].max && st.coins >= H.statCost(k, st.stats[k]));
@@ -1128,6 +1206,9 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     }
     if (mh) h += `<div class="card"><div class="small" style="margin-bottom:4px">합성: 장착하지 않은 같은 등급 방망이 3개로 다음 등급 1개 (특성 랜덤, 강화 단계 낮은 것부터 사용)</div>${mh}</div>`;
     const list = st.bats.slice().sort((a, c) => (c.id === st.equip) - (a.id === st.equip) || H.batPower(c) - H.batPower(a));
+    h += `<div class="h">방망이 도감 <span class="r small">${H.dexCount(st)}/15 · 비거리 x${fmt(H.dexMult(st), 2)}${H.dexCount(st) >= 15 ? ' · 코인 x1.2' : ''}</span></div><div class="card"><div class="dex">`;
+    for (let g = 0; g < 5; g++) for (const tt of ['power', 'contact', 'luck']) { const got = (st.dex || {})[g + '_' + tt]; h += `<div class="dx ${got ? 'got' : ''}" title="${H.BAT_NAMES[g][tt]}">${batSVG({ g, t: tt, e: 0 })}</div>`; }
+    h += `</div><div class="small" style="margin-top:6px">한 등급의 3종을 모두 모으면 비거리 +5% (최대 +25%), 15종을 다 모으면 코인 +20%</div></div>`;
     h += `<div class="h">보유 방망이 <span class="r small">${st.bats.length}/${H.INV_MAX}</span></div><div class="inv">`;
     for (const x of list) {
       const on = x.id === st.equip, G2 = H.GRADES[x.g];
@@ -1163,6 +1244,8 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       <div class="small">명예 1점마다 비거리·코인 +${Math.round(H.HONOR_PCT * 100)}% · 지금 x${fmt(H.honorMult(st), 2)}</div></div>
       <button class="btn ${can ? '' : 'gray'}" id="retireBtn" ${can ? '' : 'disabled'}>은퇴하기<span class="cost">${can ? '명예 +' + fmt(g) : '6구장부터'}</span></button></div>
       <div class="small" style="margin-top:6px">${can ? '더 먼 구장까지 갈수록 받는 명예가 커져요. 방망이·젬·보호권은 그대로 남아요.' : '6구장(2군 구장)이 열리면 은퇴할 수 있어요. 은퇴하면 처음부터 다시 시작하지만 명예 보너스로 훨씬 빨리 올라가요.'}</div></div>
+      <div class="h">홈런 더비 <span class="r small">10구 승부 · 주간 랭킹</span></div><div class="card"><div class="small" style="margin-bottom:6px">${H.derbyCanRank(st) ? '오늘의 랭킹 도전이 남아 있어요! 스트라이크만 오는 10구 동안 홈런을 최대한 많이 쳐요.' : '오늘 랭킹 도전은 끝났어요. 연습은 계속 할 수 있어요.'} 최고 기록 ${st.derbyBest || 0}개</div>
+      <div style="display:flex;gap:8px"><button class="btn" id="derbyBtn" style="flex:2">${H.derbyCanRank(st) ? '⚾ 랭킹 도전' : '⚾ 연습하기'}</button><button class="btn blue" id="rankBtn" style="flex:1">🏆 랭킹</button></div></div>
       <div class="h">구장</div>`;
     H.STADIUMS.forEach((S, i) => {
       const lock = i > st.maxStadium, cur = i === st.stadium, cl = st.cleared.includes(i);
@@ -1170,7 +1253,8 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       h += `<div class="card st ${lock ? 'lock' : ''} ${cur ? 'cur' : ''}"><div class="num">${i + 1}</div><div style="flex:1;min-width:0">
       <div>${S.name} ${cl ? '<span class="grade" style="background:#4cd97b">클리어</span>' : ''}</div>
       <div class="small">${S.out ? '목표' : '펜스'} ${H.fmtDist(S.fence)} · 코인 x${fmt(H.coinMultOf(i), 1)} · ${lock ? '이전 구장 홈런 ' + H.HR_TO_CLEAR + '개로 열림' : '홈런 ' + n + '개'}</div></div>
-      ${cur ? '<button class="btn sm gray" disabled>경기 중</button>' : lock ? '<button class="btn sm gray" disabled>잠김</button>' : `<button class="btn sm green" data-go="${i}">이동</button>`}</div>`;
+      <div style="display:flex;flex-direction:column;gap:4px">${cur ? '<button class="btn sm gray" disabled>경기 중</button>' : lock ? '<button class="btn sm gray" disabled>잠김</button>' : `<button class="btn sm green" data-go="${i}">이동</button>`}
+      ${H.bossOpen(st, i) ? `<button class="btn sm red" data-boss="${i}">${(st.bossWin || {})[i] ? '보스 재대결' : '👑 보스전'}</button>` : ''}</div></div>`;
     });
     h += `<div class="h">기록</div><div class="card small" style="line-height:1.7">
       총 홈런 <b style="color:#fff">${fmt(st.totalHR)}</b> · 총 타격 ${fmt(st.totalHits)}<br>
@@ -1182,6 +1266,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       <div class="h">설정</div><div class="card" style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn sm ${st.bgm !== false ? 'green' : 'gray'}" id="bgmBtn">배경음 ${st.bgm !== false ? 'ON' : 'OFF'}</button>
       <button class="btn sm ${st.voice !== false ? 'green' : 'gray'}" id="voiceBtn">음성 ${st.voice !== false ? 'ON' : 'OFF'}</button>
+      <button class="btn sm blue" id="langBtn">🌐 ${window.HRK_LANG === 'en' ? 'KOR' : 'English'}</button>
       <button class="btn sm ${st.sound ? 'green' : 'gray'}" id="sndBtn">사운드 ${st.sound ? 'ON' : 'OFF'}</button>
       <button class="btn sm ${st.vibe !== false ? 'green' : 'gray'}" id="vibBtn">진동 ${st.vibe !== false ? 'ON' : 'OFF'}</button>
       <button class="btn sm red" id="resetBtn">처음부터 하기</button></div>
@@ -1200,6 +1285,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       void done;
     });
     h += `</div><button class="btn big" data-att ${can ? '' : 'disabled'}>${can ? (day + 1) + '일차 보상 받기' : '오늘 출석 완료! 내일 또 와요'}</button></div>`;
+    h += `<button class="btn big blue" id="codeBtn" style="margin-bottom:8px">🎟 이벤트 코드 입력</button>`;
     h += `<div class="h">일일 미션 <span class="r small">자정에 초기화</span></div>`;
     for (const m of H.DAILY) {
       const c = Math.min(m.goal, d.c[m.id] || 0), got = d.got[m.id], ok = c >= m.goal;
@@ -1254,15 +1340,20 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     if (d.buy) {
       const r = H.buy(st, d.buy);
       if (!r.ok) { toast(r.reason === 'full' ? '방망이 가방이 가득 찼어요. 판매나 합성을 해주세요' : '재화가 부족해요'); return; }
-      track('buy', { kind: d.buy });
+      track('buy', { kind: d.buy }); if (d.buy === 'premium' || d.buy === 'normal') st.boxOpens = (st.boxOpens || 0) + 1;
       if (r.bat) { SFX.box(); revealModal(r.bat, d.buy === 'wood' ? '구매 완료' : '상자 오픈!'); }
       else { SFX.up(); toast('강화 보호권 +1'); }
       updateHUD(); return renderPanel();
     }
+    if (t.id === 'derbyBtn') { if (G.mode !== 'normal') { toast('지금 진행 중인 경기가 있어요'); return; } return startDerby(); }
+    if (t.id === 'rankBtn') return rankModal();
+    if (t.id === 'codeBtn') return codeModal();
+    if (d.boss) { if (G.mode !== 'normal') { toast('지금 진행 중인 경기가 있어요'); return; } return startBoss(+d.boss); }
     if (d.go) { H.moveStadium(st, +d.go); SFX.click(); track('stadium_move', { s: +d.go + 1 }); afterMove(); return; }
     if (t.id === 'sndBtn') { st.sound = !st.sound; BGM.sync(); return renderPanel(); }
     if (t.id === 'vibBtn') { st.vibe = st.vibe === false; if (st.vibe) vib(30); syncHaptic(); return renderPanel(); }
     if (t.id === 'retireBtn') return retireModal();
+    if (t.id === 'langBtn') { save(); window.setLang(window.HRK_LANG === 'en' ? 'ko' : 'en'); return; }
     if (t.id === 'voiceBtn') { st.voice = st.voice === false; if (st.voice) VOICE.play('ball', 0.7); return renderPanel(); }
     if (t.id === 'bgmBtn') { st.bgm = st.bgm === false; BGM.sync(); return renderPanel(); }
     if (t.id === 'shareBtn') return shareCard();
@@ -1289,7 +1380,8 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     st.auto = !st.auto; audio(); SFX.click(); syncAuto();
   });
   function syncAuto() { const b = $('autoBtn'); b.classList.toggle('on', st.auto); b.textContent = '자동 타격 ' + (st.auto ? 'ON' : 'OFF'); }
-  $('fieldWrap').addEventListener('pointerdown', () => { onTap(); });
+  $('fieldWrap').addEventListener('pointerdown', (e) => { if (e.target.closest('#guide')) return; onTap(); });
+  $('guideSkip').addEventListener('click', () => { st.tut = 99; $('guide').style.display = 'none'; clearGuideMarks(); toast('튜토리얼을 건너뛰었어요'); });
   // PC: 스페이스바로 스윙
   window.addEventListener('keydown', (e) => { if (e.code === 'Space' && modal.classList.contains('hidden')) { e.preventDefault(); onTap(); } });
   // 아이폰: 웹 진동 API가 없어서 투명 스위치를 탭하게 해 '톡' 햅틱을 낸다
@@ -1506,6 +1598,116 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       } catch (e) { toast('코드가 올바르지 않아요'); }
     };
   }
+
+  // ---------- 랭킹 (Firestore REST, HomerunKing 프로젝트) ----------
+  const FSR = 'https://firestore.googleapis.com/v1/projects/howlexample01-85afa/databases/(default)/documents';
+  async function submitRank(hr, best) {
+    const wk = H.weekKey(), distm = Math.min(999999999, Math.round(best));
+    const body = { fields: { name: { stringValue: st.nick }, hr: { integerValue: String(hr) }, distm: { integerValue: String(distm) }, score: { integerValue: String(H.derbyScore(hr, distm)) }, ts: { timestampValue: new Date().toISOString() } } };
+    const res = await fetch(`${FSR}/hrk_rank/${wk}/scores/${st.devId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    return res.ok || res.status === 403; // 403 = 이번 주 기록이 더 높음
+  }
+  async function loadRank() {
+    const wk = H.weekKey();
+    const q = { structuredQuery: { from: [{ collectionId: 'scores' }], orderBy: [{ field: { fieldPath: 'score' }, direction: 'DESCENDING' }], limit: 20 } };
+    const res = await fetch(`${FSR}/hrk_rank/${wk}:runQuery`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(q) });
+    if (!res.ok) throw new Error('rank ' + res.status);
+    const rows = await res.json();
+    return rows.filter((r) => r.document).map((r) => { const f = r.document.fields; return { id: r.document.name.split('/').pop(), name: f.name.stringValue, hr: +f.hr.integerValue, distm: +f.distm.integerValue }; });
+  }
+  async function rankModal() {
+    openModal('<h2>🏆 이번 주 홈런 더비 랭킹</h2><p>불러오는 중...</p>');
+    try {
+      const rows = await loadRank();
+      const list = rows.length ? rows.map((r, i) => `<div class="ir ${r.id === st.devId ? 'me' : ''}"><span>${i + 1}. ${esc(r.name)}</span><b>홈런 ${r.hr} · ${H.fmtDist(r.distm)}</b></div>`).join('') : '<p>아직 기록이 없어요. 첫 1등이 되어보세요!</p>';
+      openModal(`<h2>🏆 이번 주 홈런 더비 랭킹</h2><p class="small">${H.weekKey()} · 월요일에 새로 시작해요</p>${list}<div class="mbtns"><button class="btn big" data-close>닫기</button></div>`);
+    } catch (e) { openModal('<h2>🏆 랭킹</h2><p>지금은 랭킹을 불러올 수 없어요.</p><div class="mbtns"><button class="btn big" data-close>닫기</button></div>'); }
+  }
+  function esc(t) { return String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+  function derbyEndModal(D) {
+    let rew = null;
+    if (D.ranked) { st.derby = { date: H.todayKey(), hr: D.hr }; rew = H.derbyReward(st, D.hr); }
+    st.derbyBest = Math.max(st.derbyBest || 0, D.hr);
+    SFX.success(); if (D.hr >= 5) confetti();
+    track('derby_end', { hr: D.hr, ranked: D.ranked ? 1 : 0 });
+    openModal(`<h2>⚾ 홈런 더비 결과</h2><div class="res" style="color:#ffd84a">홈런 ${D.hr} / ${H.DERBY_N}</div><p>가장 멀리: ${H.fmtDist(D.best)}</p>
+      ${rew ? `<p>보상 ◆ ${rew.gems} · ₩ ${fmt(rew.coins)}</p>` : '<p class="small">연습 기록은 랭킹에 올라가지 않아요</p>'}
+      ${D.ranked ? `<input id="nickIn" maxlength="10" placeholder="랭킹 닉네임 (10자)" value="${esc(st.nick || '')}" style="width:100%;margin:8px 0;border-radius:10px;border:2px solid #3d74b3;background:#0a1d36;color:#fff;font-family:inherit;font-size:18px;text-align:center;padding:8px">` : ''}
+      <div class="mbtns"><button class="btn gray" data-close>닫기</button>${D.ranked ? '<button class="btn" id="sendRank">랭킹 등록</button>' : '<button class="btn blue" id="seeRank">랭킹 보기</button>'}</div>`);
+    const sr = $('sendRank');
+    if (sr) sr.onclick = async () => {
+      const nk = ($('nickIn').value || '').trim().slice(0, 10);
+      if (!nk) { toast('닉네임을 입력해 주세요'); return; }
+      st.nick = nk; save(); sr.disabled = true;
+      const ok = await submitRank(D.hr, D.best).catch(() => false);
+      toast(ok ? '랭킹에 등록했어요!' : '등록하지 못했어요. 잠시 후 다시 해주세요');
+      rankModal();
+    };
+    const sk = $('seeRank'); if (sk) sk.onclick = () => rankModal();
+    updateHUD(); markDirty();
+  }
+  function bossEndModal(win, i) {
+    const B = H.BOSSES[i];
+    if (win) {
+      const r = H.winBoss(st, i); SFX.success(); confetti(); vib([40, 40, 40, 40, 120]);
+      track('boss_win', { i, first: r.first ? 1 : 0 });
+      openModal(`<h2>🏆 보스 격파!</h2><p>${B.name}을(를) 무너뜨렸어요!</p><div class="res" style="color:#ffd84a">◆ ${r.gems} · ₩ ${fmt(r.coins)}</div><p class="small">${r.first ? '첫 격파 보상!' : '다시 이기면 작은 보상을 받아요'}</p><div class="mbtns"><button class="btn big" data-close>좋아요</button></div>`);
+    } else {
+      SFX.fail(); track('boss_lose', { i });
+      openModal(`<h2>패배...</h2><p>${B.name}에게 막혔어요. 능력치와 방망이를 키우고 다시 도전해요!</p><div class="mbtns"><button class="btn gray" data-close>닫기</button><button class="btn red" id="retryBoss">다시 도전</button></div>`);
+      $('retryBoss').onclick = () => startBoss(i);
+    }
+    updateHUD(); markDirty();
+  }
+
+  // ---------- 이벤트 코드 (assets/codes.json, SHA-256) ----------
+  async function sha256(t) { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)); return [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, '0')).join(''); }
+  function codeModal() {
+    openModal(`<h2>🎟 이벤트 코드</h2><p class="small">홍보 글이나 공지에서 받은 코드를 입력하세요</p>
+      <input id="evIn" autocomplete="off" autocapitalize="characters" spellcheck="false" style="width:100%;margin:10px 0;border-radius:10px;border:2px solid #3d74b3;background:#0a1d36;color:#fff;font-family:inherit;font-size:22px;letter-spacing:2px;text-align:center;padding:8px">
+      <div class="mbtns"><button class="btn gray" data-close>취소</button><button class="btn" id="evGo">받기</button></div>`);
+    $('evGo').onclick = async () => {
+      const c = ($('evIn').value || '').trim().toUpperCase(); if (!c) return;
+      try {
+        const list = await (await fetch('assets/codes.json?x=' + Date.now())).json();
+        const h = await sha256('hrk:' + c); const e = list.find((x) => x.h === h);
+        if (!e) { toast('없는 코드예요'); track('code_fail', { reason: 'invalid' }); return; }
+        st.codes = st.codes || {};
+        if (st.codes[h]) { toast('이미 받은 코드예요'); track('code_fail', { reason: 'used' }); return; }
+        const today = H.todayKey();
+        if (today < e.start) { toast('아직 시작 전인 코드예요'); return; }
+        if (today > e.end) { toast('기간이 끝난 코드예요'); track('code_fail', { reason: 'expired' }); return; }
+        st.codes[h] = today; st.gems += e.gems; save(); closeModal(); SFX.box(); toast('◆ 젬 +' + e.gems + ' 받았어요!'); track('code_redeem', { id: e.id, gems: e.gems }); updateHUD(); markDirty();
+      } catch (er) { toast('지금은 코드를 확인할 수 없어요'); }
+    };
+  }
+
+  // ---------- 단계 튜토리얼 ----------
+  const TUT = [
+    { msg: '공이 존에 들어올 때 화면을 탭해서 직접 쳐보세요!', tab: null, sel: null, done: () => st.manualHits >= 1, rew: { t: 'gems', n: 10 } },
+    { msg: '타자 탭에서 힘을 강화해보세요', tab: 'batter', sel: '[data-stat="power"]', done: () => st.stats.power >= 1, rew: { t: 'gems', n: 10 } },
+    { msg: '방망이 탭에서 강화하기를 눌러보세요', tab: 'bats', sel: '#enhBtn', done: () => st.enhTries >= 1, rew: { t: 'tickets', n: 1 } },
+    { msg: '상점에서 상자를 열어보세요 (젬이 있어요)', tab: 'shop', sel: '[data-buy="premium"]', done: () => (st.boxOpens || 0) >= 1, rew: { t: 'gems', n: 20 } },
+    { msg: '미션 탭에서 출석 보상을 받아보세요', tab: 'mission', sel: '[data-att]', done: () => (st.att && st.att.n >= 1), rew: { t: 'gems', n: 10 } },
+  ];
+  function tutCheck() {
+    const g = $('guide'); if (!g) return;
+    if (st.tut == null) st.tut = 0;
+    if (st.tut >= TUT.length || $('title').style.display !== 'none') { g.style.display = 'none'; clearGuideMarks(); return; }
+    const T = TUT[st.tut];
+    if (T.done()) {
+      const r = H.grant(st, T.rew); toast('튜토리얼 ' + (st.tut + 1) + '/' + TUT.length + ' 완료! ' + r.text); SFX.up();
+      st.tut++; track('tut_step', { n: st.tut });
+      if (st.tut >= TUT.length) { toast('튜토리얼 완료! 이제 홈런왕을 향해!'); }
+      markDirty(); return;
+    }
+    g.style.display = 'flex'; $('tapHint').style.display = 'none';
+    $('guideTxt').textContent = (st.tut + 1) + '/' + TUT.length + ' ' + T.msg;
+    clearGuideMarks();
+    if (T.tab) { const tb = document.querySelector('#tabs [data-t="' + T.tab + '"]'); if (tb && tab !== T.tab) tb.classList.add('gmark'); }
+    if (T.sel && tab === T.tab) { const el = panel.querySelector(T.sel); if (el) el.classList.add('gmark'); }
+  }
+  function clearGuideMarks() { document.querySelectorAll('.gmark').forEach((e) => e.classList.remove('gmark')); }
 
   function retireModal() {
     const g = H.honorGain(st); if (!g) return;

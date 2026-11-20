@@ -99,6 +99,7 @@
       count: { b: 0, s: 0 }, eyeCombo: 0, meatball: false, walks: 0, strikeouts: 0, takes: 0,
       honor: 0, retires: 0, runBest: 0, vibe: true, bgm: true,
       att: { last: '', n: 0 }, daily: null, ach: {}, maxEnh: 0, gotLegend: false, maxEver: 0, clearedLast: false,
+      dex: { '0_power': true }, bossWin: {}, derby: null, derbyBest: 0, tut: 0, codes: {}, devId: Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4), nick: '', voice: true,
       bats: [b], equip: b.id,
       stadium: 0, maxStadium: 0, stadiumHR: [0], cleared: [],
       totalHR: 0, totalHits: 0, best: 0, streak: 0, bestStreak: 0,
@@ -167,14 +168,14 @@
     if (bonus) d *= bonus;
     let special = false;
     if (quality === 'perfect' && rng() < specialChance(st)) { special = true; d *= 2; }
-    d *= honorMult(st);
+    d *= honorMult(st) * dexMult(st);
     d = Math.max(3, d);
     const hr = quality !== 'weak' && d >= fenceOf(st);
     let coins = d * 0.25 * coinMultOf(st.stadium) * fameMult(st.stats.fame) * (hr ? 3 : 1);
     if (b && b.t === 'luck') coins *= 1.15;
     if (manual) coins *= 1.2;
     if (fever) coins *= 2;
-    coins *= honorMult(st);
+    coins *= honorMult(st) * dexCoin(st) * (isWeekend() ? 2 : 1);
     return { quality, d, hr, coins: Math.max(1, Math.round(coins)), special };
   }
 
@@ -188,27 +189,46 @@
   // ---------- 투구와 볼카운트 ----------
   const PITCH_T = 0.62;
   function ballChance(st) { return Math.min(0.46, 0.3 + st.stadium * 0.018); }
-  function genPitch(st, rng) {
-    rng = rng || Math.random;
-    const lvl = st.stadium;
-    if (st.meatball) {
+  const PITCH_TYPES = {
+    fast: { name: '직구', t: 1.0, kmh: 0 },
+    curve: { name: '커브', t: 1.13, kmh: -22 },
+    slider: { name: '슬라이더', t: 1.05, kmh: -10 },
+    change: { name: '체인지업', t: 1.22, kmh: -18 },
+  };
+  function pitchTypesFor(s) { const t = ['fast']; if (s >= 2) t.push('curve'); if (s >= 4) t.push('slider'); if (s >= 6) t.push('change'); return t; }
+  // opts: { strikeOnly, boss }
+  function genPitch(st, rng, opts) {
+    rng = rng || Math.random; opts = opts || {};
+    const lvl = Math.min(st.stadium, 12);
+    if (st.meatball && !opts.boss) {
       st.meatball = false;
-      return { x: (rng() - 0.5) * 0.5, y: (rng() - 0.5) * 0.5, strike: true, meat: true, t: PITCH_T * 1.1, bx: 0, by: 0 };
+      return { x: (rng() - 0.5) * 0.5, y: (rng() - 0.5) * 0.5, strike: true, meat: true, t: PITCH_T * 1.1, bx: 0, by: 0, type: 'fast', kmh: 118 };
     }
     let x, y;
-    if (rng() < ballChance(st)) {
+    const bc = opts.strikeOnly ? 0 : Math.min(0.52, ballChance(st) + (opts.boss ? 0.06 : 0));
+    if (rng() < bc) {
       const out = 1.1 + rng() * 0.7;
       if (rng() < 0.5) { x = (rng() < 0.5 ? -1 : 1) * out; y = (rng() * 2 - 1) * 1.15; }
       else { y = (rng() < 0.5 ? -1 : 1) * out; x = (rng() * 2 - 1) * 1.15; }
     } else {
       x = rng() * 2 - 1; y = rng() * 2 - 1;
-      if (rng() < Math.min(0.5, lvl * 0.06)) { if (rng() < 0.5) x = (x < 0 ? -1 : 1) * (0.72 + rng() * 0.28); else y = (y < 0 ? -1 : 1) * (0.72 + rng() * 0.28); }
+      const edge = opts.strikeOnly ? 0.15 : Math.min(0.6, lvl * 0.06 + (opts.boss ? 0.15 : 0));
+      if (rng() < edge) { if (rng() < 0.5) x = (x < 0 ? -1 : 1) * (0.72 + rng() * 0.28); else y = (y < 0 ? -1 : 1) * (0.72 + rng() * 0.28); }
     }
     const strike = Math.abs(x) <= 1 && Math.abs(y) <= 1;
-    const speed = 1 + Math.min(0.2, lvl * 0.022);
-    const brk = Math.min(1.4, 0.35 + lvl * 0.12); // 늦게 꺾이는 정도
-    const a = rng() * Math.PI * 2;
-    return { x, y, strike, meat: false, t: PITCH_T / speed * (0.94 + rng() * 0.12), bx: Math.cos(a) * brk, by: Math.sin(a) * brk };
+    const types = pitchTypesFor(opts.boss ? Math.max(st.stadium, 4) : st.stadium);
+    let type = types[Math.floor(rng() * types.length)];
+    if (!opts.boss && rng() < 0.45) type = 'fast';
+    const PT = PITCH_TYPES[type];
+    const speed = (1 + Math.min(0.2, lvl * 0.022)) * (opts.boss ? 1.1 : 1);
+    const brk = Math.min(1.4, 0.35 + lvl * 0.12) * (opts.boss ? 1.25 : 1);
+    let bx, by;
+    if (type === 'curve') { bx = (rng() - 0.5) * 0.4; by = 1.1 + brk * 0.8; }
+    else if (type === 'slider') { bx = (rng() < 0.5 ? -1 : 1) * (0.9 + brk * 0.8); by = 0.2; }
+    else if (type === 'change') { const a = rng() * Math.PI * 2; bx = Math.cos(a) * brk * 0.4; by = 0.5 + Math.abs(Math.sin(a)) * 0.4; }
+    else { const a = rng() * Math.PI * 2; bx = Math.cos(a) * brk * 0.55; by = Math.sin(a) * brk * 0.55; }
+    const kmh = Math.round(125 + lvl * 3 + rng() * 8 + PT.kmh + (opts.boss ? 8 : 0));
+    return { x, y, strike, meat: false, t: PITCH_T / speed * PT.t * (0.95 + rng() * 0.1), bx, by, type, kmh };
   }
   function edgeDist(p) { return Math.max(Math.abs(p.x), Math.abs(p.y)) - 1; }
   const DOWN = { perfect: 'good', good: 'weak', weak: 'miss', miss: 'miss' };
@@ -335,15 +355,15 @@
     if (st.bats.length >= INV_MAX && kind !== 'ticket') return { ok: false, reason: 'full' };
     if (kind === 'wood') {
       const p = woodPrice(st); if (st.coins < p) return { ok: false, reason: 'coins' };
-      st.coins -= p; const b = newBat(0, null, rng); st.bats.push(b); return { ok: true, bat: b };
+      st.coins -= p; const b = newBat(0, null, rng); st.bats.push(b); markDex(st, b); return { ok: true, bat: b };
     }
     if (kind === 'normal') {
       const p = normalBoxPrice(st); if (st.coins < p) return { ok: false, reason: 'coins' };
-      st.coins -= p; const b = newBat(rollGrade(BOX.normal.odds, rng), null, rng); st.bats.push(b); if (b.g >= 4) st.gotLegend = true; return { ok: true, bat: b };
+      st.coins -= p; const b = newBat(rollGrade(BOX.normal.odds, rng), null, rng); st.bats.push(b); markDex(st, b); if (b.g >= 4) st.gotLegend = true; return { ok: true, bat: b };
     }
     if (kind === 'premium') {
       if (st.gems < PREMIUM_GEMS) return { ok: false, reason: 'gems' };
-      st.gems -= PREMIUM_GEMS; const b = newBat(rollGrade(BOX.premium.odds, rng), null, rng); st.bats.push(b); if (b.g >= 4) st.gotLegend = true; return { ok: true, bat: b };
+      st.gems -= PREMIUM_GEMS; const b = newBat(rollGrade(BOX.premium.odds, rng), null, rng); st.bats.push(b); markDex(st, b); if (b.g >= 4) st.gotLegend = true; return { ok: true, bat: b };
     }
     if (kind === 'ticket') {
       if (st.gems < TICKET_GEMS) return { ok: false, reason: 'gems' };
@@ -363,7 +383,7 @@
     if (c.length < 3) return { ok: false, reason: 'count' };
     const use = c.slice(0, 3).map((b) => b.id);
     st.bats = st.bats.filter((b) => !use.includes(b.id));
-    const nb = newBat(g + 1, null, rng); st.bats.push(nb); if (nb.g >= 4) st.gotLegend = true;
+    const nb = newBat(g + 1, null, rng); st.bats.push(nb); markDex(st, nb); if (nb.g >= 4) st.gotLegend = true;
     return { ok: true, bat: nb };
   }
 
@@ -416,6 +436,47 @@
     return (k < 10 ? parseFloat(k.toFixed(2)) : k < 100 ? parseFloat(k.toFixed(1)) : Math.round(k).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')) + 'km';
   }
   // K, M, B, T 다음은 aa, ab ... zz (방치형 표기)
+  // ---------- 방망이 도감 ----------
+  function markDex(st, b) { st.dex = st.dex || {}; st.dex[b.g + '_' + b.t] = true; }
+  function dexRows(st) { const d = st.dex || {}; let n = 0; for (let g = 0; g < 5; g++) if (['power', 'contact', 'luck'].every((t) => d[g + '_' + t])) n++; return n; }
+  function dexCount(st) { return Object.keys(st.dex || {}).length; }
+  function dexMult(st) { return 1 + 0.05 * dexRows(st); }
+  function dexCoin(st) { return dexCount(st) >= 15 ? 1.2 : 1; }
+
+  // ---------- 주말 이벤트 (한국 시간 토·일 코인 2배) ----------
+  function isWeekend(now) { const d = new Date((now || Date.now()) + 9 * 3600e3).getUTCDay(); return d === 0 || d === 6; }
+
+  // ---------- 보스 투수 ----------
+  const BOSSES = [
+    { name: '골목대장 강철수', spr: 0 }, { name: '체육쌤 박호루라기', spr: 1 }, { name: '사회인 에이스 김부장', spr: 1 },
+    { name: '고교 괴물 윤강속', spr: 2 }, { name: '대학 리그 MVP 한커브', spr: 2 }, { name: '2군 마무리 오슬라', spr: 2 },
+    { name: '프로 에이스 최강철', spr: 3 }, { name: '돔의 지배자 서체인지', spr: 3 }, { name: '빅리그 썬더 리', spr: 3 },
+    { name: '달의 투수 루나 K', spr: 4 }, { name: '주차장 전설 맥스', spr: 0 }, { name: '빌딩숲 스카이 에이스', spr: 3 },
+    { name: '바다사나이 파도', spr: 2 }, { name: '구름 위 제트', spr: 3 }, { name: '우주의 끝 오메가', spr: 4 },
+  ];
+  const BOSS_HR = 3, BOSS_OUTS = 3;
+  function bossOpen(st, i) { return (st.cleared || []).includes(i) || (st.bossWin || {})[i]; }
+  function bossReward(st, i) { const first = !(st.bossWin || {})[i]; return first ? { gems: 30 + 10 * i, sec: 1800, first } : { gems: 5, sec: 300, first }; }
+  function winBoss(st, i) {
+    const r = bossReward(st, i); st.bossWin = st.bossWin || {}; st.bossWin[i] = true;
+    st.gems += r.gems; const c = Math.max(100, Math.floor(expectedCPS(st, 150) * r.sec)); st.coins += c;
+    return { gems: r.gems, coins: c, first: r.first };
+  }
+
+  // ---------- 홈런 더비 ----------
+  const DERBY_N = 10;
+  function weekKey(now) {
+    const d = new Date((now || Date.now()) + 9 * 3600e3); // KST
+    const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+    const day = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - day);
+    const y0 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+    const wk = Math.ceil(((t - y0) / 864e5 + 1) / 7);
+    return t.getUTCFullYear() + '-W' + String(wk).padStart(2, '0');
+  }
+  function derbyCanRank(st, now) { return !st.derby || st.derby.date !== todayKey(now); }
+  function derbyScore(hr, distm) { return hr * 1e9 + Math.min(999999999, Math.max(0, Math.round(distm))); }
+  function derbyReward(st, hr) { const gems = hr * 3; const c = Math.max(50, Math.floor(expectedCPS(st, 150) * hr * 60)); st.gems += gems; st.coins += c; return { gems, coins: c }; }
+
   // ---------- 출석, 일일 미션, 업적 ----------
   function todayKey(d) { d = d || new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
   const ATT = [
@@ -448,6 +509,11 @@
     { id: 'ret1', name: '첫 은퇴', test: (s) => (s.retires || 0) >= 1, gems: 100 },
     { id: 'ret5', name: '은퇴 5번', test: (s) => (s.retires || 0) >= 5, gems: 300 },
     { id: 's15', name: '대기권 돌파 클리어', test: (s) => !!s.clearedLast, gems: 1000 },
+    { id: 'boss1', name: '첫 보스 격파', test: (s) => Object.keys(s.bossWin || {}).length >= 1, gems: 50 },
+    { id: 'boss10', name: '보스 10명 격파', test: (s) => Object.keys(s.bossWin || {}).length >= 10, gems: 300 },
+    { id: 'derby5', name: '홈런 더비 5개 이상', test: (s) => (s.derbyBest || 0) >= 5, gems: 50 },
+    { id: 'derby10', name: '홈런 더비 퍼펙트 (10개)', test: (s) => (s.derbyBest || 0) >= 10, gems: 300 },
+    { id: 'dex15', name: '방망이 도감 완성', test: (s) => Object.keys(s.dex || {}).length >= 15, gems: 500 },
   ];
   function daily(st, now) {
     const k = todayKey(now);
@@ -469,7 +535,7 @@
     if (r.t === 'box') {
       st.gems += r.gems || 0;
       if (st.bats.length >= INV_MAX) { st.gems += PREMIUM_GEMS; return { text: '가방이 가득 차서 ◆ ' + (PREMIUM_GEMS + (r.gems || 0)) }; }
-      const b = newBat(rollGrade(BOX.premium.odds, Math.random), null, Math.random); st.bats.push(b); if (b.g >= 4) st.gotLegend = true;
+      const b = newBat(rollGrade(BOX.premium.odds, Math.random), null, Math.random); st.bats.push(b); markDex(st, b); if (b.g >= 4) st.gotLegend = true;
       return { text: '고급 상자 + ◆ ' + r.gems, bat: b };
     }
     return { text: '' };
@@ -525,6 +591,7 @@
     equipped, fenceOf, coinMultOf, resistOf, honorMult, canRetire, honorGain, retire, fmtDist, OUT_START, RETIRE_AT, HONOR_PCT, perfectWindow, goodWindow, weakWindow, autoPerfect, rollAutoQuality, specialChance,
     hitResult, cycleTime, takeTime, expectedCPS, simAuto, genPitch, swingOutcome, autoDecide, hitBonus, callPitch, resetCount, eyeOf, eyeRate, ballChance, edgeDist, PITCH_T, homerunRate, tryEnhance, removeBat, bestBat, woodPrice, normalBoxPrice, buy,
     mergeCandidates, merge, sell, applyHit, moveStadium, offlineReward, fmt,
+    PITCH_TYPES, pitchTypesFor, markDex, dexRows, dexCount, dexMult, dexCoin, isWeekend, BOSSES, BOSS_HR, BOSS_OUTS, bossOpen, bossReward, winBoss, DERBY_N, weekKey, derbyCanRank, derbyScore, derbyReward,
     todayKey, ATT, DAILY, DAILY_ALL, ACH, daily, bump, rewardText, grant, attCan, attDay, claimAtt, dailyDone, claimDaily, claimDailyAll, achReady, claimAch, claimableCount,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
