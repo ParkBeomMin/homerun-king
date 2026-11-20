@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const H = window.HR;
-  const VERSION = 'v0.8.3 베타';
+  const VERSION = 'v0.8.4 베타';
   const SAVE_KEY = 'hrk_save_v1';
   const fmt = H.fmt;
   const $ = (id) => document.getElementById(id);
@@ -1358,6 +1358,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       <div class="h">설정</div><div class="card" style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn sm ${st.bgm !== false ? 'green' : 'gray'}" id="bgmBtn">배경음 ${st.bgm !== false ? 'ON' : 'OFF'}</button>
       <button class="btn sm ${st.voice !== false ? 'green' : 'gray'}" id="voiceBtn">음성 ${st.voice !== false ? 'ON' : 'OFF'}</button>
+      <button class="btn sm ${st.layout === 'bottom' ? 'green' : 'gray'}" id="layBtn">📱 타석 ${st.layout === 'bottom' ? '아래 (켜짐)' : '아래로'}</button>
       <button class="btn sm blue" id="langBtn">🌐 ${window.HRK_LANG === 'en' ? 'KOR' : 'English'}</button>
       <button class="btn sm ${st.sound ? 'green' : 'gray'}" id="sndBtn">사운드 ${st.sound ? 'ON' : 'OFF'}</button>
       <button class="btn sm ${st.vibe !== false ? 'green' : 'gray'}" id="vibBtn">진동 ${st.vibe !== false ? 'ON' : 'OFF'}</button>
@@ -1445,6 +1446,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     if (t.id === 'sndBtn') { st.sound = !st.sound; BGM.sync(); return renderPanel(); }
     if (t.id === 'vibBtn') { st.vibe = st.vibe === false; if (st.vibe) vib(30); syncHaptic(); return renderPanel(); }
     if (t.id === 'retireBtn') return retireModal();
+    if (t.id === 'layBtn') { st.layout = st.layout === 'bottom' ? 'top' : 'bottom'; applyLayout(); save(); toast(st.layout === 'bottom' ? '타석 화면을 아래로 옮겼어요' : '타석 화면을 위로 옮겼어요'); track('layout', { v: st.layout }); return renderPanel(); }
     if (t.id === 'langBtn') { save(); window.setLang(window.HRK_LANG === 'en' ? 'ko' : 'en'); return; }
     if (t.id === 'voiceBtn') { st.voice = st.voice === false; if (st.voice) VOICE.play('ball', 0.7); return renderPanel(); }
     if (t.id === 'bgmBtn') { st.bgm = st.bgm === false; BGM.sync(); return renderPanel(); }
@@ -1460,6 +1462,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     }
   });
 
+  function applyLayout() { $('app').classList.toggle('swap', st.layout === 'bottom'); requestAnimationFrame(resize); }
   function afterMove() { G.camMin = -4; G.camMax = 21; startPitch(); startIntro(); updateHUD(); renderPanel(); }
 
   $('tabs').addEventListener('click', (e) => {
@@ -1668,7 +1671,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   }
   function applyImported(o) {
     const base = H.newState(); st = Object.assign(base, o); st.stats = Object.assign(base.stats, o.stats || {});
-    save(); closeModal(); afterMove(); syncAuto(); syncHaptic(); toast('기록을 불러왔어요!');
+    save(); closeModal(); applyLayout(); afterMove(); syncAuto(); syncHaptic(); toast('기록을 불러왔어요!');
   }
   function importModal() {
     openModal(`<h2>📥 코드로 불러오기</h2><p class="small">다른 기기에서 만든 8자리 이전 코드를 입력하세요. 지금 이 기기의 기록은 덮어써져요.</p>
@@ -1908,7 +1911,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
 
   // ---------- 시작 ----------
   const had = load();
-  resize(); syncAuto(); syncHaptic(); startPitch();
+  applyLayout(); resize(); syncAuto(); syncHaptic(); startPitch();
   if (!st.tutorial) $('tapHint').style.display = 'none';
   updateHUD(); renderPanel();
   const pendingOff = had ? H.offlineReward(st, Date.now()) : null;

@@ -196,6 +196,7 @@
     ['프로 선발 장민재', 'Pro Starter Jang'], ['돔 에이스 한서준', 'Dome Ace Han'], ['빅리그 선발 하워드', 'Big League Howard'],
     ['달 기지 투수 K-07', 'Moon Base K-07'], ['주차장 강속구 아저씨', 'Parking Lot Fireballer'], ['옥상 리그 에이스', 'Rooftop Ace'],
     ['해안 강견 선장', 'Captain Cannon Arm'], ['성층권 제트 투수', 'Stratosphere Jet'], ['은하 에이스 노바', 'Galaxy Ace Nova'],
+    ['타석 화면을 아래로 옮겼어요', 'Batting view moved to the bottom'], ['타석 화면을 위로 옮겼어요', 'Batting view moved to the top'], ['아래 (켜짐)', 'bottom (on)'], ['아래로', 'to bottom'], ['타석', 'Batting view'],
     ['상대 투수', 'Opposing pitcher'], ['평균 구속', 'Avg velo'],
     // 짧은 문구
     ['홈런 100개', '100 homers'], ['첫 보스 격파', 'First boss win'], ['선구안 콤보', 'Eye combo'], ['스트라이크!', 'STRIKE!'],
