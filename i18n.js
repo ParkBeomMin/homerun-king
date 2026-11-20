@@ -191,6 +191,12 @@
     ['2군 마무리 오슬라', 'Closer Oh Slider'], ['주차장 전설 맥스', 'Parking Lot Max'], ['우주의 끝 오메가', 'Omega of Deep Space'],
     ['골목대장 강철수', 'Alley Boss Kang'], ['빅리그 썬더 리', 'Thunder Lee'], ['달의 투수 루나 K', 'Luna K of the Moon'],
     ['바다사나이 파도', 'Sea Man Wave'], ['구름 위 제트', 'Cloud Jet'], ['대학 리그 MVP 한커브', 'College MVP Han'],
+    ['동네 형 민수', 'Neighbor Minsu'], ['체육부 에이스 준호', 'Gym Club Ace Junho'], ['사회인 투수 박대리', 'Office Pitcher Park'],
+    ['고교 선발 이도현', 'HS Starter Lee'], ['대학 에이스 정우진', 'College Ace Jung'], ['2군 선발 오태양', 'Minor Starter Oh'],
+    ['프로 선발 장민재', 'Pro Starter Jang'], ['돔 에이스 한서준', 'Dome Ace Han'], ['빅리그 선발 하워드', 'Big League Howard'],
+    ['달 기지 투수 K-07', 'Moon Base K-07'], ['주차장 강속구 아저씨', 'Parking Lot Fireballer'], ['옥상 리그 에이스', 'Rooftop Ace'],
+    ['해안 강견 선장', 'Captain Cannon Arm'], ['성층권 제트 투수', 'Stratosphere Jet'], ['은하 에이스 노바', 'Galaxy Ace Nova'],
+    ['상대 투수', 'Opposing pitcher'], ['평균 구속', 'Avg velo'],
     // 짧은 문구
     ['홈런 100개', '100 homers'], ['첫 보스 격파', 'First boss win'], ['선구안 콤보', 'Eye combo'], ['스트라이크!', 'STRIKE!'],
     ['실투 찬스!', 'Meatball!'], ['타자 능력치', 'Batter Stats'], ['방망이 도감', 'Bat Collection'], ['보유 방망이', 'My Bats'],

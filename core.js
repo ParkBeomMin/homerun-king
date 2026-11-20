@@ -455,6 +455,16 @@
     { name: '바다사나이 파도', spr: 2 }, { name: '구름 위 제트', spr: 3 }, { name: '우주의 끝 오메가', spr: 4 },
   ];
   const BOSS_HR = 3, BOSS_OUTS = 3;
+  // 구장별 일반 투수 (이름, 팀 색)
+  const PITCHERS = [
+    { name: '동네 형 민수', color: '#d63b3b' }, { name: '체육부 에이스 준호', color: '#ff8a1f' }, { name: '사회인 투수 박대리', color: '#2fa84f' },
+    { name: '고교 선발 이도현', color: '#2b6fd6' }, { name: '대학 에이스 정우진', color: '#8a4fd6' }, { name: '2군 선발 오태양', color: '#13a3a3' },
+    { name: '프로 선발 장민재', color: '#d6336c' }, { name: '돔 에이스 한서준', color: '#3a3f4f' }, { name: '빅리그 선발 하워드', color: '#c9a227' },
+    { name: '달 기지 투수 K-07', color: '#9aa4b8' }, { name: '주차장 강속구 아저씨', color: '#e05a00' }, { name: '옥상 리그 에이스', color: '#5b6cff' },
+    { name: '해안 강견 선장', color: '#0e7ab8' }, { name: '성층권 제트 투수', color: '#00b3c8' }, { name: '은하 에이스 노바', color: '#b03ad6' },
+  ];
+  function pitcherOf(s) { return PITCHERS[Math.min(s, PITCHERS.length - 1)]; }
+  function avgKmh(s, boss) { return Math.round(125 + Math.min(s, 12) * 3 + 4 + (boss ? 8 : 0)); }
   function bossOpen(st, i) { return (st.cleared || []).includes(i) || (st.bossWin || {})[i]; }
   function bossReward(st, i) { const first = !(st.bossWin || {})[i]; return first ? { gems: 30 + 10 * i, sec: 1800, first } : { gems: 5, sec: 300, first }; }
   function winBoss(st, i) {
@@ -591,7 +601,7 @@
     equipped, fenceOf, coinMultOf, resistOf, honorMult, canRetire, honorGain, retire, fmtDist, OUT_START, RETIRE_AT, HONOR_PCT, perfectWindow, goodWindow, weakWindow, autoPerfect, rollAutoQuality, specialChance,
     hitResult, cycleTime, takeTime, expectedCPS, simAuto, genPitch, swingOutcome, autoDecide, hitBonus, callPitch, resetCount, eyeOf, eyeRate, ballChance, edgeDist, PITCH_T, homerunRate, tryEnhance, removeBat, bestBat, woodPrice, normalBoxPrice, buy,
     mergeCandidates, merge, sell, applyHit, moveStadium, offlineReward, fmt,
-    PITCH_TYPES, pitchTypesFor, markDex, dexRows, dexCount, dexMult, dexCoin, isWeekend, BOSSES, BOSS_HR, BOSS_OUTS, bossOpen, bossReward, winBoss, DERBY_N, weekKey, derbyCanRank, derbyScore, derbyReward,
+    PITCH_TYPES, pitchTypesFor, markDex, dexRows, dexCount, dexMult, dexCoin, isWeekend, BOSSES, BOSS_HR, BOSS_OUTS, PITCHERS, pitcherOf, avgKmh, bossOpen, bossReward, winBoss, DERBY_N, weekKey, derbyCanRank, derbyScore, derbyReward,
     todayKey, ATT, DAILY, DAILY_ALL, ACH, daily, bump, rewardText, grant, attCan, attDay, claimAtt, dailyDone, claimDaily, claimDailyAll, achReady, claimAch, claimableCount,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

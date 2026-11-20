@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const H = window.HR;
-  const VERSION = 'v0.8.2 베타';
+  const VERSION = 'v0.8.3 베타';
   const SAVE_KEY = 'hrk_save_v1';
   const fmt = H.fmt;
   const $ = (id) => document.getElementById(id);
@@ -197,7 +197,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     camMin: -4, camMax: 21, camFrom: null, flight: 1.4,
     ballX: 0, ballY: 0, ballVis: false, trail: [], trail1: [], batTrail: [], impact: null, launch: null,
     fx: [], texts: [], manualUntil: 0, fever: 0, clouds: [], crowdSeed: Math.random() * 1000,
-    mode: 'normal', derby: null, boss: null,
+    mode: 'normal', derby: null, boss: null, intro: null,
   };
   for (let i = 0; i < 6; i++) G.clouds.push({ x: Math.random(), y: 0.08 + Math.random() * 0.25, s: 0.6 + Math.random() * 0.8 });
 
@@ -663,6 +663,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     ctx.restore();
     // 볼카운트
     drawCount();
+    drawIntro();
   }
 
   function drawModeBanner() {
@@ -717,7 +718,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       let fi = 0;
       if (G.phase === 'windup') { const u = G.t / (0.8 / G.sp); fi = u < 0.3 ? 0 : u < 0.68 ? 1 : 2; }
       else if (G.phase === 'pitch' || G.phase === 'call' || G.phase === 'launch') fi = G.phase === 'pitch' && G.t < 0.04 ? 2 : 3;
-      const im = ART.pitcher[fi], c = ART.cal.pitcher, dh = h * (c.scale || 1.25), dw = dh * im.width / im.height;
+      const tf = teamFrames(H.pitcherOf(st.stadium).color), im = (tf.front || ART.pitcher)[fi], c = ART.cal.pitcher, dh = h * (c.scale || 1.25), dw = dh * im.width / im.height;
       ctx.drawImage(im, x - dw * (c.footX || 0.5), gy - dh * (c.footY || 1), dw, dh);
       return;
     }
@@ -765,6 +766,42 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     const mid = nrm({ x: 0.35, y: 0.1, z: 0.9 });
     return e < 0.5 ? mix(hit, mid, e * 2) : mix(mid, FOLLOW, (e - 0.5) * 2);
   }
+  // 구장별 투수 팀 색: 빨간 모자·라인 픽셀만 팀 색으로 바꿔 칠한다
+  const TEAMC = {};
+  function recolorRed(im, hex) {
+    const c = document.createElement('canvas'); c.width = im.width; c.height = im.height;
+    const x = c.getContext('2d'); x.drawImage(im, 0, 0);
+    const d = x.getImageData(0, 0, c.width, c.height), p = d.data;
+    const tr = parseInt(hex.slice(1, 3), 16), tg = parseInt(hex.slice(3, 5), 16), tb = parseInt(hex.slice(5, 7), 16);
+    for (let i = 0; i < p.length; i += 4) {
+      const r = p[i], g = p[i + 1], b = p[i + 2];
+      if (p[i + 3] === 0 || r < 120 || r - Math.max(g, b) < 55 || g > 120) continue;
+      const k = Math.min(1.25, r / 205);
+      p[i] = Math.min(255, tr * k); p[i + 1] = Math.min(255, tg * k); p[i + 2] = Math.min(255, tb * k);
+    }
+    x.putImageData(d, 0, 0); return c;
+  }
+  function teamFrames(hex) {
+    if (TEAMC[hex]) return TEAMC[hex];
+    TEAMC[hex] = { front: ART.pitcher ? ART.pitcher.map((im) => recolorRed(im, hex)) : null, side: ART.side ? recolorRed(ART.side[1], hex) : null };
+    return TEAMC[hex];
+  }
+  function startIntro() { if (G.mode === 'normal') G.intro = { t0: nowS(), s: st.stadium }; }
+  function drawIntro() {
+    const I = G.intro; if (!I) return;
+    const u = nowS() - I.t0; if (u > 2.8 || I.s !== st.stadium) { G.intro = null; return; }
+    const a = u < 0.25 ? u / 0.25 : u > 2.4 ? (2.8 - u) / 0.4 : 1;
+    const P = H.pitcherOf(I.s), types = H.pitchTypesFor(I.s).map((t) => H.PITCH_TYPES[t].name).join(' ');
+    const w = Math.min(W - 112, 300), x = 8, y = 8;
+    ctx.save(); ctx.globalAlpha = a;
+    ctx.fillStyle = 'rgba(5,15,35,.82)'; roundRect(x, y, w, 64, 12); ctx.fill();
+    ctx.fillStyle = P.color; roundRect(x, y, 8, 64, 4); ctx.fill();
+    ctx.textAlign = 'left'; ctx.font = '12px Jua'; ctx.fillStyle = '#a9c2e0'; ctx.fillText('상대 투수', x + 18, y + 18);
+    ctx.font = '19px Jua'; ctx.fillStyle = '#fff'; ctx.fillText(P.name, x + 18, y + 40);
+    ctx.font = '12px Jua'; ctx.fillStyle = '#ffd84a'; ctx.fillText('평균 구속 ' + H.avgKmh(I.s) + 'km/h · ' + types, x + 18, y + 57, w - 24);
+    ctx.restore();
+  }
+
   // 방망이를 실제로 쥔 타자 그림(초록 방망이)을 장착 등급 색으로 바꿔 칠한다
   const HOLDC = {};
   function holdFrames(g) {
@@ -992,7 +1029,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     const ph = Math.max(18, 1.9 * sc * 2.1);
     if (ART.side) {
       const sd = (im, x, h) => { const w = h * im.width / im.height; ctx.drawImage(im, x - w / 2, gy - h + 2, w, h); };
-      if (G.mode === 'boss' && ART.boss) sd(ART.boss[H.BOSSES[G.boss.i].spr], sx(18.4), ph * 1.25); else sd(ART.side[1], sx(18.4), ph * 1.25);
+      if (G.mode === 'boss' && ART.boss) sd(ART.boss[H.BOSSES[G.boss.i].spr], sx(18.4), ph * 1.25); else sd(teamFrames(H.pitcherOf(st.stadium).color).side || ART.side[1], sx(18.4), ph * 1.25);
       sd(ART.side[2], sx(-1.6), ph * 1.25);
       sd(ART.side[0], sx(-0.4), ph * 1.3);
     } else {
@@ -1423,7 +1460,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     }
   });
 
-  function afterMove() { G.camMin = -4; G.camMax = 21; startPitch(); updateHUD(); renderPanel(); }
+  function afterMove() { G.camMin = -4; G.camMax = 21; startPitch(); startIntro(); updateHUD(); renderPanel(); }
 
   $('tabs').addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;
@@ -1884,7 +1921,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     setTimeout(() => { title.style.display = 'none'; }, 350);
     if (pendingOff && pendingOff.coins > 0) offlineModal(pendingOff);
     if (H.attCan(st)) queueModal(attModal);
-    BGM.start(); VOICE.load();
+    BGM.start(); VOICE.load(); startIntro();
     track('title_start', {});
   });
   track('game_start', { returning: had ? 1 : 0 });
