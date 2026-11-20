@@ -50,7 +50,9 @@
     contact: { name: '정확', icon: '🎯', base: 30, growth: 1.3, max: 50, desc: (lv) => '자동 퍼펙트 ' + Math.round(autoPerfectBase(lv) * 100) + '%' },
     speed: { name: '스윙 속도', icon: '⚡', base: 60, growth: 1.35, max: 30, desc: (lv) => '경기 속도 x' + fmt(speedMult(lv), 2) },
     fame: { name: '인기', icon: '⭐', base: 40, growth: 1.24, max: 999, desc: (lv) => '코인 x' + fmt(fameMult(lv), 2) },
+    eye: { name: '선구안', icon: '👁', base: 25, growth: 1.27, max: 30, desc: (lv) => '자동 볼 판단 ' + Math.round(eyeRate(lv) * 100) + '%' },
   };
+  function eyeRate(lv) { return Math.min(0.96, 0.66 + lv * 0.01); }
 
   function powerMult(lv) { return Math.pow(1.05, lv); }
   function autoPerfectBase(lv) { return Math.min(0.6, 0.08 + lv * 0.01); }
@@ -85,7 +87,8 @@
     const b = newBat(0, 'power');
     return {
       v: 1, coins: 0, gems: 60, tickets: 0,
-      stats: { power: 0, contact: 0, speed: 0, fame: 0 },
+      stats: { power: 0, contact: 0, speed: 0, fame: 0, eye: 0 },
+      count: { b: 0, s: 0 }, eyeCombo: 0, meatball: false, walks: 0, strikeouts: 0, takes: 0,
       bats: [b], equip: b.id,
       stadium: 0, maxStadium: 0, stadiumHR: [0], cleared: [],
       totalHR: 0, totalHits: 0, best: 0, streak: 0, bestStreak: 0,
@@ -130,12 +133,13 @@
   }
 
   // 타격 결과 계산
-  function hitResult(st, quality, manual, fever, rng) {
+  function hitResult(st, quality, manual, fever, rng, bonus) {
     rng = rng || Math.random;
     if (quality === 'miss') return { quality, d: 0, hr: false, coins: 0, special: false };
     const b = equipped(st);
     let d = 32 * powerMult(st.stats.power) * batPower(b) * QMULT[quality] * (0.9 + rng() * 0.2) / resistOf(st.stadium);
     if (manual && quality === 'perfect') d *= 1.15;
+    if (bonus) d *= bonus;
     let special = false;
     if (quality === 'perfect' && rng() < specialChance(st)) { special = true; d *= 2; }
     d = Math.max(3, d);
@@ -154,26 +158,107 @@
     return (0.75 + 0.55 + flight + 0.6) / sp;
   }
 
-  // 자동 타격 기준 초당 코인 기대값
-  function expectedCPS(st, n) {
-    n = n || 400;
-    let seed = 12345;
-    const rng = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
-    let coins = 0, time = 0;
-    for (let i = 0; i < n; i++) {
-      const r = hitResult(st, rollAutoQuality(st, rng), false, false, rng);
-      coins += r.coins; time += cycleTime(st, r.d);
+  // ---------- 투구와 볼카운트 ----------
+  const PITCH_T = 0.62;
+  function ballChance(st) { return Math.min(0.46, 0.3 + st.stadium * 0.018); }
+  function genPitch(st, rng) {
+    rng = rng || Math.random;
+    const lvl = st.stadium;
+    if (st.meatball) {
+      st.meatball = false;
+      return { x: (rng() - 0.5) * 0.5, y: (rng() - 0.5) * 0.5, strike: true, meat: true, t: PITCH_T * 1.1, bx: 0, by: 0 };
     }
-    return coins / time;
+    let x, y;
+    if (rng() < ballChance(st)) {
+      const out = 1.1 + rng() * 0.7;
+      if (rng() < 0.5) { x = (rng() < 0.5 ? -1 : 1) * out; y = (rng() * 2 - 1) * 1.15; }
+      else { y = (rng() < 0.5 ? -1 : 1) * out; x = (rng() * 2 - 1) * 1.15; }
+    } else {
+      x = rng() * 2 - 1; y = rng() * 2 - 1;
+      if (rng() < Math.min(0.5, lvl * 0.06)) { if (rng() < 0.5) x = (x < 0 ? -1 : 1) * (0.72 + rng() * 0.28); else y = (y < 0 ? -1 : 1) * (0.72 + rng() * 0.28); }
+    }
+    const strike = Math.abs(x) <= 1 && Math.abs(y) <= 1;
+    const speed = 1 + Math.min(0.2, lvl * 0.022);
+    const brk = Math.min(1.4, 0.35 + lvl * 0.12); // 늦게 꺾이는 정도
+    const a = rng() * Math.PI * 2;
+    return { x, y, strike, meat: false, t: PITCH_T / speed * (0.94 + rng() * 0.12), bx: Math.cos(a) * brk, by: Math.sin(a) * brk };
+  }
+  function edgeDist(p) { return Math.max(Math.abs(p.x), Math.abs(p.y)) - 1; }
+  const DOWN = { perfect: 'good', good: 'weak', weak: 'miss', miss: 'miss' };
+  // 타이밍 판정 + 공 위치 -> 최종 타구 품질
+  function swingOutcome(st, p, q, rng) {
+    rng = rng || Math.random;
+    if (q === 'miss') return 'miss';
+    if (p.strike) return q;
+    const e = edgeDist(p);
+    if (e < 0.2) return DOWN[q];
+    return rng() < 0.35 ? 'weak' : 'miss';
+  }
+  function eyeOf(st) { return eyeRate(st.stats.eye || 0); }
+  function autoDecide(st, p, rng) {
+    rng = rng || Math.random;
+    const ok = rng() < eyeOf(st);
+    return p.strike ? ok : !ok; // true = 스윙
+  }
+  function hitBonus(st, p) { return (1 + 0.1 * (st.eyeCombo || 0)) * (p && p.meat ? 1.1 : 1); }
+  function resetCount(st) { st.count = { b: 0, s: 0 }; }
+  // 스윙하지 않았을 때 또는 헛스윙
+  function callPitch(st, p, swung, fever) {
+    if (!st.count) resetCount(st);
+    if (swung) { // 헛스윙
+      st.eyeCombo = 0; st.count.s++;
+      if (st.count.s >= 3) { st.strikeouts++; st.streak = 0; resetCount(st); return { ev: 'strikeout' }; }
+      return { ev: 'swingmiss' };
+    }
+    st.takes++;
+    if (!p.strike) {
+      st.eyeCombo = Math.min(5, (st.eyeCombo || 0) + 1); st.count.b++;
+      if (st.count.b >= 4) {
+        st.walks++; resetCount(st); st.meatball = true;
+        const coins = hitResult(st, 'good', false, fever).coins;
+        st.coins += coins;
+        return { ev: 'walk', coins };
+      }
+      return { ev: 'ball' };
+    }
+    st.count.s++;
+    if (st.count.s >= 3) { st.strikeouts++; st.streak = 0; resetCount(st); return { ev: 'strikeout', looking: true }; }
+    return { ev: 'strike' };
   }
 
-  function homerunRate(st, n) {
-    n = n || 400;
-    let seed = 777, hr = 0;
-    const rng = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
-    for (let i = 0; i < n; i++) if (hitResult(st, rollAutoQuality(st, rng), false, false, rng).hr) hr++;
-    return hr / n;
+  // 자동 타격 1회당 걸리는 시간(초)
+  function cycleTime(st, d) {
+    const sp = speedMult(st.stats.speed);
+    const flight = 1.0 + Math.min(1.4, (d || 40) / 160);
+    return (0.8 + 0.6 + 0.35 + flight + 0.75 + 0.35) / sp;
   }
+  function takeTime(st) { return (0.8 + 0.6 + 0.75) / speedMult(st.stats.speed); }
+
+  // 자동 플레이 몬테카를로 (볼카운트 포함). 원본 상태는 건드리지 않음
+  function simAuto(st, n, seed) {
+    let sd = seed || 12345;
+    const rng = () => { sd = (sd * 1103515245 + 12345) & 0x7fffffff; return sd / 0x7fffffff; };
+    const c = { count: { b: 0, s: 0 }, eyeCombo: 0, meatball: false, streak: 0, walks: 0, strikeouts: 0, takes: 0, coins: 0 };
+    const t = Object.assign({}, st, c);
+    let coins = 0, time = 0, hr = 0, contacts = 0;
+    for (let i = 0; i < n; i++) {
+      const p = genPitch(t, rng);
+      if (autoDecide(t, p, rng)) {
+        const q = swingOutcome(t, p, rollAutoQuality(t, rng), rng);
+        if (q === 'miss') { callPitch(t, p, true); time += takeTime(t); continue; }
+        const r = hitResult(t, q, false, false, rng, hitBonus(t, p));
+        t.eyeCombo = 0; t.count = { b: 0, s: 0 };
+        coins += r.coins; time += cycleTime(t, r.d); contacts++; if (r.hr) hr++;
+      } else {
+        const before = t.coins; const e = callPitch(t, p, false);
+        if (e.ev === 'walk') coins += t.coins - before;
+        time += takeTime(t);
+      }
+    }
+    return { cps: coins / time, hrRate: contacts ? hr / contacts : 0 };
+  }
+  function expectedCPS(st, n) { return simAuto(st, n || 400, 12345).cps; }
+  function homerunRate(st, n) { return simAuto(st, n || 400, 777).hrRate; }
 
   // 강화 시도
   function tryEnhance(st, b, useTicket, rng) {
@@ -265,7 +350,7 @@
 
   // 홈런 기록 및 구장 진행
   function applyHit(st, r) {
-    st.totalHits++;
+    st.totalHits++; st.count = { b: 0, s: 0 }; st.eyeCombo = 0;
     const ev = { gems: 0, cleared: false };
     if (r.d > st.best) st.best = r.d;
     if (r.special) { st.specials++; st.gems += 1; ev.gems += 1; }
@@ -308,7 +393,7 @@
     PREMIUM_GEMS, TICKET_GEMS, OFFLINE_MAX, OFFLINE_RATE, QMULT,
     powerMult, speedMult, fameMult, statCost, batPower, batName, enhCost, enhRate, failText, newBat, newState,
     equipped, fenceOf, coinMultOf, perfectWindow, goodWindow, weakWindow, autoPerfect, rollAutoQuality, specialChance,
-    hitResult, cycleTime, expectedCPS, homerunRate, tryEnhance, removeBat, bestBat, woodPrice, normalBoxPrice, buy,
+    hitResult, cycleTime, takeTime, expectedCPS, simAuto, genPitch, swingOutcome, autoDecide, hitBonus, callPitch, resetCount, eyeOf, eyeRate, ballChance, edgeDist, PITCH_T, homerunRate, tryEnhance, removeBat, bestBat, woodPrice, normalBoxPrice, buy,
     mergeCandidates, merge, sell, applyHit, moveStadium, offlineReward, fmt,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
