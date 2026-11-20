@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const H = window.HR;
-  const VERSION = 'v0.3 베타';
+  const VERSION = 'v0.3.1 베타';
   const SAVE_KEY = 'hrk_save_v1';
   const fmt = H.fmt;
   const $ = (id) => document.getElementById(id);
@@ -236,7 +236,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   function landed() {
     const r = G.result;
     const ev = H.applyHit(st, r);
-    track('hit', { q: r.quality, hr: r.hr ? 1 : 0, manual: G.manual ? 1 : 0 });
+    if (r.hr || G.manual) track(r.hr ? 'homerun' : 'manual_hit', { q: r.quality, manual: G.manual ? 1 : 0, s: st.stadium + 1 });
     if (r.hr) {
       SFX.cheer(); G.shake = 0.35;
       const outS = H.STADIUMS[st.stadium].out;
@@ -1149,6 +1149,8 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   });
   function syncAuto() { const b = $('autoBtn'); b.classList.toggle('on', st.auto); b.textContent = '자동 타격 ' + (st.auto ? 'ON' : 'OFF'); }
   $('fieldWrap').addEventListener('pointerdown', () => { onTap(); });
+  // PC: 스페이스바로 스윙
+  window.addEventListener('keydown', (e) => { if (e.code === 'Space' && modal.classList.contains('hidden')) { e.preventDefault(); onTap(); } });
   // 아이폰: 웹 진동 API가 없어서 투명 스위치를 탭하게 해 '톡' 햅틱을 낸다
   const IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   function syncHaptic() { $('hapLbl').style.display = IOS && st.vibe !== false ? 'block' : 'none'; }

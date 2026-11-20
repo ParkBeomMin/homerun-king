@@ -395,7 +395,7 @@
 
   function moveStadium(st, s) {
     if (s < 0 || s > st.maxStadium || s >= STADIUMS.length) return false;
-    st.stadium = s; if (st.stadiumHR[s] == null) st.stadiumHR[s] = 0; st.streak = 0; return true;
+    st.stadium = s; if (st.stadiumHR[s] == null) st.stadiumHR[s] = 0; st.streak = 0; st.count = { b: 0, s: 0 }; st.eyeCombo = 0; st.meatball = false; return true;
   }
 
   const OFFLINE_MAX = 8 * 3600, OFFLINE_RATE = 0.5;
@@ -408,9 +408,12 @@
   function fmtDist(m) {
     if (m < 1000) return (Number.isInteger(m) || m >= 100 ? Math.round(m) : m.toFixed(1)) + 'm';
     const k = m / 1000;
+    if (k >= 1e6) return fmt(k) + 'km';
     return (k < 10 ? parseFloat(k.toFixed(2)) : k < 100 ? parseFloat(k.toFixed(1)) : Math.round(k).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')) + 'km';
   }
-  const UNITS = ['', 'K', 'M', 'B', 'T', 'aa', 'ab', 'ac', 'ad', 'ae', 'af', 'ag'];
+  // K, M, B, T 다음은 aa, ab ... zz (방치형 표기)
+  const UNITS = ['', 'K', 'M', 'B', 'T'];
+  for (let i = 0; i < 26; i++) for (let j = 0; j < 26; j++) UNITS.push(String.fromCharCode(97 + i) + String.fromCharCode(97 + j));
   function fmt(n, dp) {
     if (n == null || !isFinite(n)) return '0';
     if (dp != null && n < 1000) return (Math.round(n * Math.pow(10, dp)) / Math.pow(10, dp)).toString();
