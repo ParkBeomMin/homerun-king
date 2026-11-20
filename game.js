@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const H = window.HR;
-  const VERSION = 'v0.7 베타';
+  const VERSION = 'v0.7.1 베타';
   const SAVE_KEY = 'hrk_save_v1';
   const fmt = H.fmt;
   const $ = (id) => document.getElementById(id);
@@ -1177,7 +1177,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       최고 비거리 <b style="color:#ffd84a">${H.fmtDist(st.best)}</b> · 최고 연속 홈런 ${st.bestStreak}<br>
       특대 홈런 ${st.specials} · 강화 시도 ${st.enhTries} · 파괴된 방망이 ${st.destroyed}
       <button class="btn big" id="shareBtn" style="margin-top:8px">📸 내 기록 카드 공유하기</button></div>
-      <div class="h">기기 이전</div><div class="card"><div class="small" style="margin-bottom:6px">다른 폰이나 브라우저로 옮길 때 코드를 만들어 붙여넣으세요. 기록은 이 기기에만 저장돼요.</div>
+      <div class="h">기기 이전</div><div class="card"><div class="small" style="margin-bottom:6px">다른 폰이나 브라우저로 옮길 때 8자리 코드를 만들어 새 기기에 입력하세요. 코드는 24시간 동안 1번 쓸 수 있어요.</div>
       <div style="display:flex;gap:8px"><button class="btn sm blue" id="expBtn" style="flex:1">이전 코드 만들기</button><button class="btn sm gray" id="impBtn" style="flex:1">코드로 불러오기</button></div></div>
       <div class="h">설정</div><div class="card" style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn sm ${st.bgm !== false ? 'green' : 'gray'}" id="bgmBtn">배경음 ${st.bgm !== false ? 'ON' : 'OFF'}</button>
@@ -1447,23 +1447,62 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     if (!o || !Array.isArray(o.bats) || o.stats == null) throw new Error('bad');
     return o;
   }
+  // 8자리 이전 코드: Firebase(HomerunKing, howlexample01-85afa) Firestore REST, 24시간 1회용
+  const FS = 'https://firestore.googleapis.com/v1/projects/howlexample01-85afa/databases/(default)/documents/hrk_transfers';
+  const ABC = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  function shortCode() { const r = crypto.getRandomValues(new Uint8Array(8)); let c = ''; for (let i = 0; i < 8; i++) { c += ABC[r[i] % ABC.length]; if (i === 3) c += '-'; } return c; }
+  async function uploadCode(long) {
+    const exp = new Date(Date.now() + 24 * 3600e3).toISOString();
+    for (let i = 0; i < 4; i++) {
+      const code = shortCode();
+      const res = await fetch(FS + '?documentId=' + code, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields: { d: { stringValue: long }, exp: { timestampValue: exp }, v: { integerValue: '1' } } }) });
+      if (res.ok) return code;
+      if (res.status !== 409) throw new Error('net ' + res.status);
+    }
+    throw new Error('retry');
+  }
   async function exportModal() {
-    const code = await makeCode();
-    openModal(`<h2>📦 이전 코드</h2><p class="small">이 코드를 복사해서 새 기기의 [구장 → 코드로 불러오기]에 붙여넣으세요. 코드에는 지금 기록 전체가 들어 있어요.</p>
-      <textarea id="codeBox" readonly style="width:100%;height:110px;margin:8px 0;border-radius:10px;border:2px solid #3d74b3;background:#0a1d36;color:#cfe4ff;font-size:11px;padding:8px;word-break:break-all">${code}</textarea>
+    openModal('<h2>📦 이전 코드</h2><p>코드 만드는 중...</p>');
+    const long = await makeCode();
+    let code = null;
+    try { code = await uploadCode(long); } catch (e) { code = null; }
+    if (code) {
+      openModal(`<h2>📦 이전 코드</h2><p class="small">새 기기의 [구장 → 코드로 불러오기]에 입력하세요</p>
+        <div class="res" style="font-size:40px;letter-spacing:3px;color:#ffd84a;margin:14px 0">${code}</div>
+        <p class="small">24시간 동안 1번만 쓸 수 있어요. 지금 기록이 그대로 옮겨져요.</p>
+        <div class="mbtns"><button class="btn gray" data-close>닫기</button><button class="btn" id="copyCode">복사하기</button></div>`);
+      $('copyCode').onclick = async () => { try { await navigator.clipboard.writeText(code); toast('복사했어요'); } catch (e) { toast(code); } };
+      track('save_export', { kind: 'short' });
+      return;
+    }
+    // 서버가 안 되면 긴 코드로 대신
+    openModal(`<h2>📦 이전 코드</h2><p class="small">지금은 짧은 코드를 만들 수 없어서 긴 코드를 드려요. 전체를 복사해서 새 기기에 붙여넣으세요.</p>
+      <textarea id="codeBox" readonly style="width:100%;height:110px;margin:8px 0;border-radius:10px;border:2px solid #3d74b3;background:#0a1d36;color:#cfe4ff;font-size:11px;padding:8px;word-break:break-all">${long}</textarea>
       <div class="mbtns"><button class="btn gray" data-close>닫기</button><button class="btn" id="copyCode">복사하기</button></div>`);
-    $('copyCode').onclick = async () => { try { await navigator.clipboard.writeText(code); toast('복사했어요'); } catch (e) { const tb = $('codeBox'); tb.select(); document.execCommand('copy'); toast('복사했어요'); } };
-    track('save_export', {});
+    $('copyCode').onclick = async () => { try { await navigator.clipboard.writeText(long); toast('복사했어요'); } catch (e) { const tb = $('codeBox'); tb.select(); document.execCommand('copy'); toast('복사했어요'); } };
+    track('save_export', { kind: 'long' });
+  }
+  function applyImported(o) {
+    const base = H.newState(); st = Object.assign(base, o); st.stats = Object.assign(base.stats, o.stats || {});
+    save(); closeModal(); afterMove(); syncAuto(); syncHaptic(); toast('기록을 불러왔어요!');
   }
   function importModal() {
-    openModal(`<h2>📥 코드로 불러오기</h2><p class="small">다른 기기에서 만든 이전 코드를 붙여넣으세요. 지금 이 기기의 기록은 덮어써져요.</p>
-      <textarea id="codeIn" style="width:100%;height:110px;margin:8px 0;border-radius:10px;border:2px solid #3d74b3;background:#0a1d36;color:#fff;font-size:12px;padding:8px" placeholder="HRK1Z..."></textarea>
+    openModal(`<h2>📥 코드로 불러오기</h2><p class="small">다른 기기에서 만든 8자리 이전 코드를 입력하세요. 지금 이 기기의 기록은 덮어써져요.</p>
+      <input id="codeIn" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABCD-1234" style="width:100%;margin:10px 0;border-radius:10px;border:2px solid #3d74b3;background:#0a1d36;color:#fff;font-family:inherit;font-size:26px;letter-spacing:3px;text-align:center;padding:10px">
       <div class="mbtns"><button class="btn gray" data-close>취소</button><button class="btn red" id="doImp">불러오기</button></div>`);
     $('doImp').onclick = async () => {
+      const raw = ($('codeIn').value || '').trim();
       try {
-        const o = await readCode($('codeIn').value);
-        const base = H.newState(); st = Object.assign(base, o); st.stats = Object.assign(base.stats, o.stats || {});
-        save(); closeModal(); afterMove(); syncAuto(); syncHaptic(); toast('기록을 불러왔어요!'); track('save_import', {});
+        if (/^HRK1/.test(raw)) { applyImported(await readCode(raw)); track('save_import', { kind: 'long' }); return; }
+        const c = raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        if (c.length !== 8) { toast('8자리 코드를 입력해 주세요'); return; }
+        const code = c.slice(0, 4) + '-' + c.slice(4);
+        const res = await fetch(FS + '/' + code);
+        if (!res.ok) { toast(res.status === 403 || res.status === 404 ? '없거나 만료된 코드예요' : '연결이 불안정해요. 잠시 후 다시 해주세요'); return; }
+        const j = await res.json();
+        const o = await readCode(j.fields.d.stringValue);
+        fetch(FS + '/' + code, { method: 'DELETE' }).catch(() => {});
+        applyImported(o); track('save_import', { kind: 'short' });
       } catch (e) { toast('코드가 올바르지 않아요'); }
     };
   }
