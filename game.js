@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const H = window.HR;
-  const VERSION = 'v0.3.1 베타';
+  const VERSION = 'v0.4 베타';
   const SAVE_KEY = 'hrk_save_v1';
   const fmt = H.fmt;
   const $ = (id) => document.getElementById(id);
@@ -96,7 +96,7 @@
   };
 
   // ---------- 방망이 SVG ----------
-  function batSVG(b, glow) {
+  function batSVGRaw(b, glow) {
     const g = H.GRADES[b.g];
     const id = 'bg' + b.g;
     const aura = b.e >= 10 ? `<ellipse cx="66" cy="12" rx="58" ry="12" fill="${g.color}" opacity="${0.12 + (b.e - 10) * 0.025}"/>` : '';
@@ -111,6 +111,19 @@ ${star}
 ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fill="#fff" stroke="#000" stroke-width=".6" paint-order="stroke">+${b.e}</text>` : ''}
 </svg>`;
   }
+  // 에셋 (있으면 그림, 없으면 코드 그림)
+  let BAT_ART = false, UI_ART = false;
+  function batSVG(b, glow) {
+    if (!BAT_ART) return batSVGRaw(b, glow);
+    const g = H.GRADES[b.g];
+    return `<span class="bart${glow ? ' glow' : ''}${b.e >= 10 ? ' aura' : ''}" style="--gc:${g.color}"><img src="assets/bats/g${b.g}_${b.t}.webp" alt="" draggable="false">${b.e > 0 ? `<i>+${b.e}</i>` : ''}</span>`;
+  }
+  function uiIcon(name, emoji) { return UI_ART ? `<img src="assets/ui/${name}.webp" alt="" draggable="false">` : emoji; }
+  function preloadArt() {
+    const a = new Image(); a.onload = () => { BAT_ART = true; lastHTML = ''; markDirty(); setTabIcon(); }; a.src = 'assets/bats/g0_power.webp';
+    const u = new Image(); u.onload = () => { UI_ART = true; lastHTML = ''; markDirty(); }; u.src = 'assets/ui/shop_wood.webp';
+  }
+  function setTabIcon() { document.querySelector('#tabs [data-t="bats"] b').innerHTML = '<span style="display:inline-block;width:34px">' + batSVG({ g: 4, t: 'power', e: 0 }) + '</span>'; }
   function gradeTag(g) { const G = H.GRADES[g]; return `<span class="grade" style="background:${G.color}">${G.name}</span>`; }
 
   // ---------- 필드 ----------
@@ -955,7 +968,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     const canStat = Object.keys(H.STATS).some((k) => st.stats[k] < H.STATS[k].max && st.coins >= H.statCost(k, st.stats[k]));
     dots[0].style.display = canStat ? 'block' : 'none';
     const eb = H.equipped(st);
-    dots[1].style.display = (eb.e < H.ENH_MAX && st.coins >= H.enhCost(eb)) || H.bestBat(st).id !== st.equip ? 'block' : 'none';
+    dots[1].style.display = (eb.e < H.ENH_MAX && st.coins >= H.enhCost(eb, st)) || H.bestBat(st).id !== st.equip ? 'block' : 'none';
     dots[2].style.display = st.gems >= H.PREMIUM_GEMS ? 'block' : 'none';
     dots[3].style.display = st.maxStadium > st.stadium ? 'block' : 'none';
   }
@@ -1013,7 +1026,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
 
   function renderBats() {
     const b = H.equipped(st), g = H.GRADES[b.g];
-    const rate = H.enhRate(b), cost = H.enhCost(b), max = b.e >= H.ENH_MAX;
+    const rate = H.enhRate(b), cost = H.enhCost(b, st), max = b.e >= H.ENH_MAX;
     let h = `<div class="card"><div class="eq"><div class="bimg">${batSVG(b, b.e >= 10)}</div><div style="min-width:0">
       <div style="font-size:17px">${H.batName(b)} <span style="color:${g.color}">+${b.e}</span></div>
       <div>${gradeTag(b.g)} <span class="small">${H.TRAITS[b.t].name}</span></div>
@@ -1050,13 +1063,13 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     const full = st.bats.length >= H.INV_MAX;
     const wp = H.woodPrice(st), np = H.normalBoxPrice(st);
     return `<div class="h">상점 <span class="r small">방망이 ${st.bats.length}/${H.INV_MAX}</span></div>
-    <div class="card shopi"><div class="pic">🪵</div><div style="flex:1"><div>나무 배트</div><div class="small">일반 등급, 특성 랜덤. 합성 재료로 좋아요</div></div>
+    <div class="card shopi"><div class="pic">${uiIcon('shop_wood', '🪵')}</div><div style="flex:1"><div>나무 배트</div><div class="small">일반 등급, 특성 랜덤. 합성 재료로 좋아요</div></div>
       <button class="btn" data-buy="wood" ${full || st.coins < wp ? 'disabled' : ''}>구매<span class="cost">₩ ${fmt(wp)}</span></button></div>
-    <div class="card shopi"><div class="pic">📦</div><div style="flex:1"><div>일반 상자</div><div class="odds">${oddsTxt(H.BOX.normal.odds)}</div></div>
+    <div class="card shopi"><div class="pic">${uiIcon('shop_box', '📦')}</div><div style="flex:1"><div>일반 상자</div><div class="odds">${oddsTxt(H.BOX.normal.odds)}</div></div>
       <button class="btn" data-buy="normal" ${full || st.coins < np ? 'disabled' : ''}>열기<span class="cost">₩ ${fmt(np)}</span></button></div>
-    <div class="card shopi"><div class="pic">🎁</div><div style="flex:1"><div>고급 상자</div><div class="odds">${oddsTxt(H.BOX.premium.odds)}</div></div>
+    <div class="card shopi"><div class="pic">${uiIcon('shop_chest', '🎁')}</div><div style="flex:1"><div>고급 상자</div><div class="odds">${oddsTxt(H.BOX.premium.odds)}</div></div>
       <button class="btn blue" data-buy="premium" ${full || st.gems < H.PREMIUM_GEMS ? 'disabled' : ''}>열기<span class="cost">◆ ${H.PREMIUM_GEMS}</span></button></div>
-    <div class="card shopi"><div class="pic">🛡</div><div style="flex:1"><div>강화 보호권</div><div class="small">+10 이상 강화에서 파괴될 때 대신 1단계 하락으로 막아줘요</div></div>
+    <div class="card shopi"><div class="pic">${uiIcon('shop_shield', '🛡')}</div><div style="flex:1"><div>강화 보호권</div><div class="small">+10 이상 강화에서 파괴될 때 대신 1단계 하락으로 막아줘요</div></div>
       <button class="btn blue" data-buy="ticket" ${st.gems < H.TICKET_GEMS ? 'disabled' : ''}>구매<span class="cost">◆ ${H.TICKET_GEMS}</span></button></div>
     <div class="card small">◆ 젬은 구장 클리어, 홈런 25개마다, 특대 홈런으로 얻어요. 실제 결제는 없어요.<br>상자 가격은 도달한 구장에 따라 올라가요.</div>`;
   }
@@ -1288,14 +1301,24 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   window.addEventListener('pagehide', save);
 
   // 방망이 탭 아이콘
-  document.querySelector('#tabs [data-t="bats"] b').innerHTML = '<span style="display:inline-block;width:34px">' + batSVG({ g: 0, t: 'power', e: 0 }) + '</span>';
+  setTabIcon(); preloadArt();
 
   // ---------- 시작 ----------
   const had = load();
   resize(); syncAuto(); syncHaptic(); startPitch();
   if (!st.tutorial) $('tapHint').style.display = 'none';
   updateHUD(); renderPanel();
-  if (had) { const o = H.offlineReward(st, Date.now()); if (o.coins > 0) offlineModal(o); }
+  const pendingOff = had ? H.offlineReward(st, Date.now()) : null;
+  // 타이틀 화면: 탭하면 시작 (사운드도 이때 켜짐)
+  const title = $('title');
+  $('tVer').textContent = VERSION;
+  title.addEventListener('pointerdown', () => {
+    if (title.classList.contains('out')) return;
+    audio(); SFX.click(); title.classList.add('out');
+    setTimeout(() => { title.style.display = 'none'; }, 350);
+    if (pendingOff && pendingOff.coins > 0) offlineModal(pendingOff);
+    track('title_start', {});
+  });
   track('game_start', { returning: had ? 1 : 0 });
   requestAnimationFrame(frame);
   window.__hrk = { get st() { return st; }, G, save };

@@ -75,7 +75,8 @@
     return p;
   }
   function batName(b) { return BAT_NAMES[b.g][b.t]; }
-  function enhCost(b) { return Math.ceil(GRADES[b.g].enhBase * Math.pow(1.6, b.e)); }
+  // 강화 비용: 등급 기본값 x 1.6^단계 x (6구장부터) 구장 코인 배율 x 명예 배율. 은퇴하면 구장 배율은 다시 낮아짐
+  function enhCost(b, st) { return Math.ceil(GRADES[b.g].enhBase * Math.pow(1.6, b.e) * (st ? coinMultOf(Math.max(0, (st.maxStadium || 0) - 5)) * honorMult(st) : 1)); }
   function enhRate(b) { return b.e >= ENH_MAX ? 0 : ENH_RATE[b.e]; }
   function failText(e) {
     if (e < 5) return '실패해도 단계 유지';
@@ -288,7 +289,7 @@
   // 강화 시도
   function tryEnhance(st, b, useTicket, rng) {
     rng = rng || Math.random;
-    const cost = enhCost(b);
+    const cost = enhCost(b, st);
     if (b.e >= ENH_MAX) return { ok: false, reason: 'max' };
     if (st.coins < cost) return { ok: false, reason: 'coins' };
     st.coins -= cost; st.enhTries++;
