@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const H = window.HR;
-  const VERSION = 'v0.6 베타';
+  const VERSION = 'v0.7 베타';
   const SAVE_KEY = 'hrk_save_v1';
   const fmt = H.fmt;
   const $ = (id) => document.getElementById(id);
@@ -94,6 +94,33 @@
     click() { tone(600, 0.05, 'sine', 0.08); },
     up() { tone(700, 0.07, 'triangle', 0.12); tone(1050, 0.1, 'triangle', 0.12, 0.05); },
   };
+
+  // ---------- 음성 (심판 콜, 캐스터) : assets/voice/*.mp3 가 있을 때만 ----------
+  const VOICE = (() => {
+    const NAMES = ['strike', 'ball', 'strikeout', 'walk', 'hr1', 'hr2', 'hr3', 'outhr', 'sphr', 'nice'];
+    const buf = {}; let loading = false, lastHR = 0, lastAny = 0, hrIdx = 0;
+    function load() {
+      if (loading || !AC) return; loading = true;
+      NAMES.forEach((n) => fetch('assets/voice/' + n + '.mp3').then((r) => r.ok ? r.arrayBuffer() : null).then((ab) => ab && AC.decodeAudioData(ab)).then((b) => { if (b) buf[n] = b; }).catch(() => {}));
+    }
+    function play(n, vol) {
+      if (!st.sound || st.voice === false) return;
+      const ac = audio(); if (!ac) return; load();
+      const b = buf[n]; if (!b) return;
+      const now = ac.currentTime; if (now - lastAny < 0.25) return; lastAny = now;
+      const src = ac.createBufferSource(), g = ac.createGain(); src.buffer = b; g.gain.value = vol == null ? 0.8 : vol;
+      src.connect(g).connect(ac.destination); src.start();
+    }
+    function homer(special, out, manual) {
+      const t = performance.now();
+      if (!manual && !special && t - lastHR < 6000) return; // 자동 타격 홈런은 6초에 한 번만
+      lastHR = t;
+      if (special) return play('sphr', 1);
+      if (out) return play('outhr', 0.95);
+      hrIdx = (hrIdx + 1) % 3; play('hr' + (hrIdx + 1), 0.95);
+    }
+    return { load, play, homer };
+  })();
 
   // ---------- 방망이 SVG ----------
   function batSVGRaw(b, glow) {
@@ -241,6 +268,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     SFX.crack(q);
     vib(big ? 45 : 20);
     const lbl = { perfect: 'PERFECT!', good: 'GOOD', weak: '빗맞음' }[q];
+    if (manual && q === 'perfect') VOICE.play('nice', 0.8);
     popText(lbl, q === 'perfect' ? '#ffe14d' : q === 'good' ? '#9fe8ff' : '#d0d0d0', q === 'perfect' ? 34 : 26, false, 0.3);
     if ((st.eyeCombo || 0) > 0 && q !== 'weak') popText('선구안 보너스 +' + st.eyeCombo * 10 + '%', '#7fffd4', 16, false, 0.42);
     if (p.meat && q !== 'weak') popText('실투를 놓치지 않았다!', '#ffcf6b', 16, false, 0.42);
@@ -257,11 +285,11 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     const res = H.callPitch(st, p, swung, fever);
     G.call = { p, ev: res.ev, swung };
     G.phase = 'call'; G.t = 0;
-    if (res.ev === 'ball') { SFX.mitt(0.6); popText('볼', '#9fe8ff', 30); if (st.eyeCombo) popText('선구안 콤보 ' + st.eyeCombo + ' (+' + st.eyeCombo * 10 + '%)', '#7fffd4', 16, false, 0.4); }
-    else if (res.ev === 'strike') { SFX.mitt(1); popText('스트라이크!', '#ffb0b0', 30); }
-    else if (res.ev === 'swingmiss') { SFX.mitt(1); popText('헛스윙 스트라이크', '#ffb0b0', 26); }
-    else if (res.ev === 'walk') { SFX.mitt(0.6); SFX.coin(); popText('볼넷!', '#7fffd4', 40, true); floatCoin('+' + fmt(res.coins)); toast('볼넷 보너스! 다음 공은 한가운데 실투'); vib(25); track('walk', {}); }
-    else if (res.ev === 'strikeout') { SFX.mitt(1); SFX.out(); popText(res.looking ? '루킹 삼진' : '삼진 아웃', '#ff7a7a', 36, true); G.shake = 0.12; vib([60, 40, 60]); track('strikeout', {}); }
+    if (res.ev === 'ball') { SFX.mitt(0.6); VOICE.play('ball', 0.75); popText('볼', '#9fe8ff', 30); if (st.eyeCombo) popText('선구안 콤보 ' + st.eyeCombo + ' (+' + st.eyeCombo * 10 + '%)', '#7fffd4', 16, false, 0.4); }
+    else if (res.ev === 'strike') { SFX.mitt(1); VOICE.play('strike', 0.75); popText('스트라이크!', '#ffb0b0', 30); }
+    else if (res.ev === 'swingmiss') { SFX.mitt(1); VOICE.play('strike', 0.75); popText('헛스윙 스트라이크', '#ffb0b0', 26); }
+    else if (res.ev === 'walk') { SFX.mitt(0.6); VOICE.play('walk', 0.85); SFX.coin(); popText('볼넷!', '#7fffd4', 40, true); floatCoin('+' + fmt(res.coins)); toast('볼넷 보너스! 다음 공은 한가운데 실투'); vib(25); track('walk', {}); }
+    else if (res.ev === 'strikeout') { SFX.mitt(1); VOICE.play('strikeout', 0.85); SFX.out(); popText(res.looking ? '루킹 삼진' : '삼진 아웃', '#ff7a7a', 36, true); G.shake = 0.12; vib([60, 40, 60]); track('strikeout', {}); }
     updateHUD(); markDirty();
   }
 
@@ -271,6 +299,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     if (r.hr || G.manual) track(r.hr ? 'homerun' : 'manual_hit', { q: r.quality, manual: G.manual ? 1 : 0, s: st.stadium + 1 });
     if (r.hr) {
       SFX.cheer(); G.shake = 0.35;
+      VOICE.homer(r.special, !!H.STADIUMS[st.stadium].out, G.manual);
       const outS = H.STADIUMS[st.stadium].out;
       popText(r.special ? (outS ? '초대형 장외 홈런!!' : '특대 홈런!!') : (outS ? '장외 홈런!' : 'HOMERUN!'), r.special ? '#ffcc00' : '#fff', r.special ? 40 : 38, true);
       popText(H.fmtDist(r.d), '#ffe9a0', 22, false, 0.25);
@@ -1152,6 +1181,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       <div style="display:flex;gap:8px"><button class="btn sm blue" id="expBtn" style="flex:1">이전 코드 만들기</button><button class="btn sm gray" id="impBtn" style="flex:1">코드로 불러오기</button></div></div>
       <div class="h">설정</div><div class="card" style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn sm ${st.bgm !== false ? 'green' : 'gray'}" id="bgmBtn">배경음 ${st.bgm !== false ? 'ON' : 'OFF'}</button>
+      <button class="btn sm ${st.voice !== false ? 'green' : 'gray'}" id="voiceBtn">음성 ${st.voice !== false ? 'ON' : 'OFF'}</button>
       <button class="btn sm ${st.sound ? 'green' : 'gray'}" id="sndBtn">사운드 ${st.sound ? 'ON' : 'OFF'}</button>
       <button class="btn sm ${st.vibe !== false ? 'green' : 'gray'}" id="vibBtn">진동 ${st.vibe !== false ? 'ON' : 'OFF'}</button>
       <button class="btn sm red" id="resetBtn">처음부터 하기</button></div>
@@ -1233,6 +1263,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     if (t.id === 'sndBtn') { st.sound = !st.sound; BGM.sync(); return renderPanel(); }
     if (t.id === 'vibBtn') { st.vibe = st.vibe === false; if (st.vibe) vib(30); syncHaptic(); return renderPanel(); }
     if (t.id === 'retireBtn') return retireModal();
+    if (t.id === 'voiceBtn') { st.voice = st.voice === false; if (st.voice) VOICE.play('ball', 0.7); return renderPanel(); }
     if (t.id === 'bgmBtn') { st.bgm = st.bgm === false; BGM.sync(); return renderPanel(); }
     if (t.id === 'shareBtn') return shareCard();
     if (t.id === 'expBtn') return exportModal();
@@ -1557,7 +1588,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     setTimeout(() => { title.style.display = 'none'; }, 350);
     if (pendingOff && pendingOff.coins > 0) offlineModal(pendingOff);
     if (H.attCan(st)) queueModal(attModal);
-    BGM.start();
+    BGM.start(); VOICE.load();
     track('title_start', {});
   });
   track('game_start', { returning: had ? 1 : 0 });
