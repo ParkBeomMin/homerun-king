@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const H = window.HR;
-  const VERSION = 'v0.8 베타';
+  const VERSION = 'v0.8.1 베타';
   const SAVE_KEY = 'hrk_save_v1';
   const fmt = H.fmt;
   const $ = (id) => document.getElementById(id);
@@ -780,12 +780,13 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     const twist = Math.max(0, Math.min(1, kk)) * 0.35;
     const bw = 0.5 * s;
     const SPR = ART.batter;
-    let handScr = null;
+    let handScr = null, sprDraw = null;
     if (SPR) {
       const c = ART.cal.batter, fi = kk < 0.55 ? 0 : kk < 1.45 ? 1 : 2, im = SPR[fi];
       const dh = 1.85 * s * (c.scale || 1.1), dw = dh * im.width / im.height;
       const x0 = f[0] - dw * (c.footX || 0.5), y0 = f[1] - dh * (c.footY || 1);
-      ctx.drawImage(im, x0, y0, dw, dh);
+      // 몸은 방망이 다음에 그려서 장갑이 손잡이를 감싸 쥔 것처럼 보이게 한다
+      sprDraw = () => ctx.drawImage(im, x0, y0, dw, dh);
       handScr = [x0 + dw * c.hands[fi][0], y0 + dh * c.hands[fi][1]];
     }
     // 다리 (화면 아래로 잘림)
@@ -807,10 +808,11 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     }
     // 방망이
     const hands = { x: bx + 0.22 + twist * 0.2, y: 1.25 - Math.min(1, kk) * 0.28, z: bz - 0.05 + twist * 0.15 };
-    const L = 0.86;
+    const L = SPR ? 0.74 : 0.86;
     const dir = batDir(kk, hands);
     const tip = { x: hands.x + dir.x * L, y: hands.y + dir.y * L, z: hands.z + dir.z * L };
-    const knob = { x: hands.x - dir.x * 0.08, y: hands.y - dir.y * 0.08, z: hands.z - dir.z * 0.08 };
+    const kb = SPR ? 0.16 : 0.08; // 그림 타자: 손잡이 끝이 장갑 아래로 살짝 보이게
+    const knob = { x: hands.x - dir.x * kb, y: hands.y - dir.y * kb, z: hands.z - dir.z * kb };
     const ph = proj(hands.x, hands.y, hands.z), pt = proj(tip.x, tip.y, tip.z), pk = proj(knob.x, knob.y, knob.z);
     if (handScr) { const ox = handScr[0] - ph[0], oy = handScr[1] - ph[1]; for (const q of [ph, pt, pk]) { q[0] += ox; q[1] += oy; } }
     // 스윙 궤적
@@ -826,7 +828,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       }
     }
     const b = H.equipped(st), gr = H.GRADES[b.g];
-    const wTip = Math.max(3, 0.07 * pt[2]), wH = Math.max(2, 0.028 * ph[2]);
+    const wTip = Math.max(SPR ? 5 : 3, (SPR ? 0.085 : 0.07) * pt[2]), wH = Math.max(SPR ? 3 : 2, (SPR ? 0.036 : 0.028) * ph[2]);
     const ang = Math.atan2(pt[1] - pk[1], pt[0] - pk[0]), nx = -Math.sin(ang), ny = Math.cos(ang);
     const grd = ctx.createLinearGradient(pk[0] + nx * wTip, pk[1] + ny * wTip, pk[0] - nx * wTip, pk[1] - ny * wTip);
     grd.addColorStop(0, '#fff'); grd.addColorStop(0.35, gr.color); grd.addColorStop(1, gr.dark);
@@ -838,7 +840,16 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     ctx.arc(pt[0], pt[1], wTip / 2, ang + Math.PI / 2, ang - Math.PI / 2, true);
     ctx.lineTo(pk[0] - nx * wH / 2, pk[1] - ny * wH / 2);
     ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0;
-    if (SPR) return;
+    if (SPR) {
+      // 그립 테이프와 손잡이 끝(노브)
+      const gx = pk[0] + (pt[0] - pk[0]) * 0.24, gy2 = pk[1] + (pt[1] - pk[1]) * 0.24;
+      ctx.strokeStyle = '#2a2a2a'; ctx.lineCap = 'butt'; ctx.lineWidth = wH * 1.05;
+      ctx.beginPath(); ctx.moveTo(pk[0], pk[1]); ctx.lineTo(gx, gy2); ctx.stroke();
+      ctx.fillStyle = gr.dark; ctx.beginPath(); ctx.ellipse(pk[0], pk[1], wH * 0.95, wH * 0.75, ang, 0, 7); ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.lineWidth = 1; ctx.stroke();
+      sprDraw();
+      return;
+    }
     // 팔
     ctx.strokeStyle = '#ffd7b0'; ctx.lineCap = 'round'; ctx.lineWidth = Math.max(3, bw * 0.16);
     ctx.beginPath(); ctx.moveTo(sh[0] - bw * 0.4 + twist * bw * 0.3, sh[1] + bw * 0.08); ctx.lineTo(ph[0], ph[1]); ctx.stroke();
