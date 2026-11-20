@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const H = window.HR;
-  const VERSION = 'v0.8.4 베타';
+  const VERSION = 'v0.8.5 베타';
   const SAVE_KEY = 'hrk_save_v1';
   const fmt = H.fmt;
   const $ = (id) => document.getElementById(id);
@@ -1446,7 +1446,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     if (t.id === 'sndBtn') { st.sound = !st.sound; BGM.sync(); return renderPanel(); }
     if (t.id === 'vibBtn') { st.vibe = st.vibe === false; if (st.vibe) vib(30); syncHaptic(); return renderPanel(); }
     if (t.id === 'retireBtn') return retireModal();
-    if (t.id === 'layBtn') { st.layout = st.layout === 'bottom' ? 'top' : 'bottom'; applyLayout(); save(); toast(st.layout === 'bottom' ? '타석 화면을 아래로 옮겼어요' : '타석 화면을 위로 옮겼어요'); track('layout', { v: st.layout }); return renderPanel(); }
+    if (t.id === 'layBtn') return toggleLayout('setting');
     if (t.id === 'langBtn') { save(); window.setLang(window.HRK_LANG === 'en' ? 'ko' : 'en'); return; }
     if (t.id === 'voiceBtn') { st.voice = st.voice === false; if (st.voice) VOICE.play('ball', 0.7); return renderPanel(); }
     if (t.id === 'bgmBtn') { st.bgm = st.bgm === false; BGM.sync(); return renderPanel(); }
@@ -1462,6 +1462,20 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     }
   });
 
+  function toggleLayout(src) {
+    st.layout = st.layout === 'bottom' ? 'top' : 'bottom'; st.layoutAsked = true;
+    applyLayout(); save(); SFX.click();
+    toast(st.layout === 'bottom' ? '타석 화면을 아래로 옮겼어요' : '타석 화면을 위로 옮겼어요');
+    track('layout', { v: st.layout, src }); markDirty();
+  }
+  function layoutAsk() {
+    st.layoutAsked = true; save();
+    openModal(`<h2>📱 한 손으로 치기</h2><p>타석 화면을 아래로 옮기면 엄지로 치기 편해요. 옮겨볼까요?</p>
+      <p class="small">자동 타격 옆 ⇅ 버튼으로 언제든 바꿀 수 있어요</p>
+      <div class="mbtns"><button class="btn gray" id="layKeep">지금 그대로</button><button class="btn" id="layDown">아래로</button></div>`);
+    $('layKeep').onclick = () => { closeModal(); track('layout_ask', { v: 'keep' }); };
+    $('layDown').onclick = () => { closeModal(); if (st.layout !== 'bottom') toggleLayout('ask'); track('layout_ask', { v: 'bottom' }); };
+  }
   function applyLayout() { $('app').classList.toggle('swap', st.layout === 'bottom'); requestAnimationFrame(resize); }
   function afterMove() { G.camMin = -4; G.camMax = 21; startPitch(); startIntro(); updateHUD(); renderPanel(); }
 
@@ -1471,6 +1485,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     document.querySelectorAll('#tabs button').forEach((x) => x.classList.toggle('on', x === b));
     panel.scrollTop = 0; renderPanel();
   });
+  $('swapBtn').addEventListener('click', () => { audio(); toggleLayout('button'); });
   $('autoBtn').addEventListener('click', () => {
     st.auto = !st.auto; audio(); SFX.click(); syncAuto();
   });
@@ -1793,7 +1808,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     if (T.done()) {
       const r = H.grant(st, T.rew); toast('튜토리얼 ' + (st.tut + 1) + '/' + TUT.length + ' 완료! ' + r.text); SFX.up();
       st.tut++; track('tut_step', { n: st.tut });
-      if (st.tut >= TUT.length) { toast('튜토리얼 완료! 이제 홈런왕을 향해!'); }
+      if (st.tut >= TUT.length) { toast('튜토리얼 완료! 이제 홈런왕을 향해!'); if (!st.layoutAsked) setTimeout(() => queueModal(layoutAsk), 1500); }
       markDirty(); return;
     }
     g.style.display = 'flex'; $('tapHint').style.display = 'none';
@@ -1925,6 +1940,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     if (pendingOff && pendingOff.coins > 0) offlineModal(pendingOff);
     if (H.attCan(st)) queueModal(attModal);
     BGM.start(); VOICE.load(); startIntro();
+    if (!st.layoutAsked && (st.tut == null || st.tut >= TUT.length)) queueModal(layoutAsk);
     track('title_start', {});
   });
   track('game_start', { returning: had ? 1 : 0 });

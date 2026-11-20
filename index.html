@@ -157,6 +157,7 @@ html,body{margin:0;height:100%;background:#071629;color:var(--txt);font-family:'
 #app.swap #ctrl{order:3}
 #app.swap #fieldWrap{order:4;margin-bottom:env(safe-area-inset-bottom)}
 #app.swap{background:#071629}
+#swapBtn{padding:6px 10px;font-size:16px;line-height:1;background:#2b5a8f}
 .ver{font-size:11px;color:#6d8bb0;text-align:center;margin:10px 0 4px}
 </style>
 <script>
@@ -191,6 +192,7 @@ window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(argu
   </div>
   <div id="ctrl">
     <button id="autoBtn" class="tog on">자동 타격 ON</button>
+    <button id="swapBtn" class="tog" title="타석 화면 위/아래 바꾸기">⇅</button>
     <span id="cps">초당 0</span>
   </div>
   <section id="panel"></section>
@@ -204,8 +206,8 @@ window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(argu
 </div>
 <div id="title"><div class="tlogo"><img id="tEmblem" src="assets/ui/emblem.webp" alt="" onerror="this.style.display='none'"><h1>홈런왕<br><span>키우기</span></h1></div><div class="ttap">화면을 탭해서 시작</div><div class="tver" id="tVer"></div></div>
 <div id="modal" class="hidden"></div>
-<script src="i18n.js?v=0.8.4"></script>
-<script src="core.js?v=0.8.4"></script>
-<script src="game.js?v=0.8.4"></script>
+<script src="i18n.js?v=0.8.5"></script>
+<script src="core.js?v=0.8.5"></script>
+<script src="game.js?v=0.8.5"></script>
 </body>
 </html>
