@@ -1,5 +1,5 @@
 // 홈런왕 키우기 서비스워커: 코드는 네트워크 우선(업데이트 바로 반영), 그림은 캐시 우선
-const CACHE = 'hrk-v0.8';
+const CACHE = 'hrk-v0.8.6';
 const CORE = ['./', 'index.html', 'manifest.webmanifest', 'assets/ui/icon-192.png', 'assets/ui/emblem.webp'];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CORE)).then(() => self.skipWaiting()));

@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const H = window.HR;
-  const VERSION = 'v0.8.5 베타';
+  const VERSION = 'v0.8.6 베타';
   const SAVE_KEY = 'hrk_save_v1';
   const fmt = H.fmt;
   const $ = (id) => document.getElementById(id);
@@ -166,7 +166,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       for (const who of ['pitcher', 'batter', 'side', 'boss', 'hold']) {
         const c = cal[who]; if (!c) continue;
         const frames = []; let left = c.n;
-        for (let i = 0; i < c.n; i++) { const im = new Image(); im.onload = () => { frames[i] = im; if (--left === 0) ART[who] = frames; }; im.src = 'assets/sprites/' + who + '_' + i + '.webp'; }
+        for (let i = 0; i < c.n; i++) { const im = new Image(); im.onload = () => { frames[i] = im; if (--left === 0) ART[who] = frames; }; im.src = 'assets/sprites/' + (who === 'hold' ? 'holdb' : who) + '_' + i + '.webp'; }
       }
     }).catch(() => {});
   }
@@ -802,37 +802,61 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     ctx.restore();
   }
 
-  // 방망이를 실제로 쥔 타자 그림(초록 방망이)을 장착 등급 색으로 바꿔 칠한다
-  const HOLDC = {};
-  function holdFrames(g) {
-    if (HOLDC[g]) return HOLDC[g];
-    const G2 = H.GRADES[g], hex = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
-    const lc = hex(G2.color), dc = hex(G2.dark);
-    HOLDC[g] = ART.hold.map((im) => {
+  // 방망이 없는 타자 그림 + 상점에서 산 실제 방망이 그림을 손 위치에 맞춰 합성한다
+  // HOLDAX: 원래 그림의 방망이 축(손잡이 끝 k, 끝 t, 굵기 w, 모두 프레임 비율). 3번 프레임만 방망이가 몸 앞
+  const HOLDAX = [{"k": [0.8173, 0.3467], "t": [0.9257, 0.0045], "w": 0.0794}, {"k": [0.9537, 0.4515], "t": [-0.0005, 0.4302], "w": 0.0786}, {"k": [0.6119, 0.485], "t": [0.997, 0.4733], "w": 0.0756}, {"k": [0.1469, 0.4044], "t": [0.9939, 0.5376], "w": 0.0897}];
+  const HOLDC = {}, BATIMG = {};
+  function batImg(b) {
+    const key = b.g + '_' + b.t;
+    if (BATIMG[key]) return BATIMG[key].ready ? BATIMG[key] : null;
+    const o = BATIMG[key] = { ready: false }, im = new Image();
+    im.onload = () => {
       const c = document.createElement('canvas'); c.width = im.width; c.height = im.height;
-      const x = c.getContext('2d'); x.drawImage(im, 0, 0);
-      const m = document.createElement('canvas'); m.width = im.width; m.height = im.height; const mx = m.getContext('2d');
-      const d = x.getImageData(0, 0, c.width, c.height), md = mx.createImageData(c.width, c.height), p = d.data, q = md.data;
-      for (let i = 0; i < p.length; i += 4) {
-        const r = p[i], gg = p[i + 1], bb = p[i + 2];
-        const t = Math.max(0, Math.min(1, (gg - Math.max(r, bb) - 40) / 140));
-        if (t <= 0 || p[i + 3] === 0) continue;
-        const k = 0.35 + 0.65 * t; // 가장자리는 어둡게
-        const nr = dc[0] + (lc[0] - dc[0]) * k, ng = dc[1] + (lc[1] - dc[1]) * k, nb = dc[2] + (lc[2] - dc[2]) * k;
-        p[i] = r + (nr - r) * Math.min(1, t * 1.6); p[i + 1] = gg + (ng - gg) * Math.min(1, t * 1.6); p[i + 2] = bb + (nb - bb) * Math.min(1, t * 1.6);
-        q[i] = nr; q[i + 1] = ng; q[i + 2] = nb; q[i + 3] = t > 0.4 ? 255 : 0;
-      }
-      x.putImageData(d, 0, 0); mx.putImageData(md, 0, 0);
-      return { img: c, bat: m };
+      const x = c.getContext('2d'); x.drawImage(im, 0, 0); const d = x.getImageData(0, 0, c.width, c.height).data, w = c.width, h = c.height;
+      const col = (cx) => { let lo = -1, hi = -1; for (let y = 0; y < h; y++) if (d[(y * w + cx) * 4 + 3] > 90) { if (lo < 0) lo = y; hi = y; } return lo < 0 ? null : [lo, hi]; };
+      let x0 = 0, x1 = w - 1; while (x0 < w - 1 && !col(x0)) x0++; while (x1 > 0 && !col(x1)) x1--;
+      const L = x1 - x0, ca = col(Math.round(x0 + L * 0.04)) || [0, h], cb = col(Math.round(x0 + L * 0.96)) || [0, h], cm = col(Math.round(x0 + L * 0.85)) || [0, h];
+      Object.assign(o, { im, x0, x1, ky: (ca[0] + ca[1]) / 2, ty: (cb[0] + cb[1]) / 2, th: Math.max(8, cm[1] - cm[0]), ready: true });
+      markDirty();
+    };
+    im.src = 'assets/bats/g' + key + '.webp';
+    return null;
+  }
+  function holdFrames(b) {
+    const B = batImg(b); if (!B) return null;
+    const key = b.g + '_' + b.t; if (HOLDC[key]) return HOLDC[key];
+    HOLDC[key] = ART.hold.map((im, fi) => {
+      const A = HOLDAX[fi], fw = im.width, fh = im.height, px = Math.round(fw * 0.6), py = Math.round(fh * 0.2);
+      const mk = () => { const c = document.createElement('canvas'); c.width = fw + px * 2; c.height = fh + py * 2; return c; };
+      const bat = mk(), bx = bat.getContext('2d');
+      const kx = px + A.k[0] * fw, ky = py + A.k[1] * fh, tx = px + A.t[0] * fw, ty = py + A.t[1] * fh;
+      const len = Math.hypot(tx - kx, ty - ky) * 1.06, ang = Math.atan2(ty - ky, tx - kx);
+      const iang = Math.atan2(B.ty - B.ky, B.x1 - B.x0), sx = len / Math.hypot(B.x1 - B.x0, B.ty - B.ky), sy = (A.w * fh * 1.12) / B.th;
+      bx.translate(kx, ky); bx.rotate(ang - iang); bx.scale(sx, sy); bx.drawImage(B.im, -B.x0, -B.ky);
+      const c = mk(), x = c.getContext('2d');
+      if (fi === 3) {
+        x.drawImage(im, px, py); x.drawImage(bat, 0, 0);
+        // 손(장갑)을 방망이 위로 다시 그린다
+        const hc = mk(), hx = hc.getContext('2d'); hx.drawImage(im, px, py);
+        const R = fh * 0.095, hd = hx.getImageData(0, 0, hc.width, hc.height), p = hd.data;
+        for (let yy = 0; yy < hc.height; yy++) for (let xx = 0; xx < hc.width; xx++) {
+          const i = (yy * hc.width + xx) * 4, r = p[i], g = p[i + 1], bb = p[i + 2];
+          const far = Math.hypot(xx - kx, yy - ky) > R, white = r > 175 && g > 175 && bb > 175;
+          if (far || white) p[i + 3] = 0;
+        }
+        hx.putImageData(hd, 0, 0); x.drawImage(hc, 0, 0);
+      } else { x.drawImage(bat, 0, 0); x.drawImage(im, px, py); }
+      return { img: c, bat, px, py };
     });
-    return HOLDC[g];
+    return HOLDC[key];
   }
   function drawBatterHold(kk) {
     const bx = -0.95, bz = 0.45;
     const f = proj(bx, 0, bz), s = f[2];
     const fi = kk < 0.35 ? 0 : kk < 0.8 ? 1 : kk < 1.5 ? 2 : 3;
-    const b = H.equipped(st), fr = holdFrames(b.g)[fi], c = ART.cal.hold;
-    const dh = 1.85 * s * (c.scale || 1), dw = dh * fr.img.width / fr.img.height;
+    const b = H.equipped(st), hf = holdFrames(b), c = ART.cal.hold, raw = ART.hold[fi];
+    const fr = hf ? hf[fi] : { img: raw, bat: null, px: 0, py: 0 };
+    const dh = 1.85 * s * (c.scale || 1), dw = dh * raw.width / raw.height, k = dh / raw.height;
     const x0 = f[0] - dw * c.footX[fi], y0 = f[1] - dh * 0.97;
     // 휘두르는 궤적
     if (kk > 0.25 && kk < 1.7 && (G.phase === 'pitch' || G.phase === 'launch')) {
@@ -842,8 +866,9 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       ctx.strokeStyle = gr2; ctx.lineWidth = dh * 0.09; ctx.lineCap = 'round';
       ctx.beginPath(); ctx.ellipse(cx, cy, R, R * 0.45, 0, a0, a1); ctx.stroke();
     }
-    ctx.drawImage(fr.img, x0, y0, dw, dh);
-    if (b.e >= 10) { ctx.save(); ctx.shadowColor = H.GRADES[b.g].color; ctx.shadowBlur = 16; ctx.drawImage(fr.bat, x0, y0, dw, dh); ctx.restore(); }
+    const ox = x0 - fr.px * k, oy = y0 - fr.py * k, ow = fr.img.width * k, oh = fr.img.height * k;
+    if (b.e >= 10 && fr.bat) { ctx.save(); ctx.shadowColor = H.GRADES[b.g].color; ctx.shadowBlur = 18; ctx.globalAlpha = 0.9; ctx.drawImage(fr.bat, ox, oy, ow, oh); ctx.restore(); }
+    ctx.drawImage(fr.img, ox, oy, ow, oh);
   }
   function drawBatterBack() {
     const bx = -0.95, bz = 0.45;
@@ -1945,5 +1970,5 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   });
   track('game_start', { returning: had ? 1 : 0 });
   requestAnimationFrame(frame);
-  window.__hrk = { get st() { return st; }, G, save };
+  window.__hrk = { get st() { return st; }, G, save, holdFrames };
 })();
