@@ -40,7 +40,14 @@
     { name: '돔 구장', fence: 130, sky: ['#3a3f4f', '#7d8496'], grass: '#2f9443', night: true, dome: true },
     { name: '바다 건너 빅리그', fence: 138, sky: ['#0d1438', '#33407f'], grass: '#2a8a3a', night: true },
     { name: '달 기지 구장', fence: 160, sky: ['#05060f', '#1d2140'], grass: '#8a8f9e', night: true, moon: true },
+    // 장외 홈런 단계: 타석은 빅리그 구장, 목표 거리는 구장 밖
+    { name: '구장 밖 주차장', fence: 500, sky: ['#6fb8f5', '#cfeaff'], grass: '#3f9443', night: false, out: 'parking' },
+    { name: '도심 빌딩 숲', fence: 2000, sky: ['#ff9a6b', '#ffdcb5'], grass: '#3a8d40', night: false, out: 'city' },
+    { name: '산 넘어 바다', fence: 10000, sky: ['#4f9fe6', '#c3e8ff'], grass: '#3f9443', night: false, out: 'sea' },
+    { name: '구름 위 성층권', fence: 100000, sky: ['#123378', '#6fa4f5'], grass: '#3a8d40', night: false, out: 'sky' },
+    { name: '대기권 돌파', fence: 1000000, sky: ['#020414', '#141a3a'], grass: '#2a8a3a', night: true, out: 'space' },
   ];
+  const OUT_START = 10;
   const HR_TO_CLEAR = 10;
   const RESIST = 2.3; // 구장마다 투수 저항 배율
   const COIN_STEP = 3.3; // 구장마다 코인 배율
@@ -89,6 +96,7 @@
       v: 1, coins: 0, gems: 60, tickets: 0,
       stats: { power: 0, contact: 0, speed: 0, fame: 0, eye: 0 },
       count: { b: 0, s: 0 }, eyeCombo: 0, meatball: false, walks: 0, strikeouts: 0, takes: 0,
+      honor: 0, retires: 0, runBest: 0, vibe: true,
       bats: [b], equip: b.id,
       stadium: 0, maxStadium: 0, stadiumHR: [0], cleared: [],
       totalHR: 0, totalHits: 0, best: 0, streak: 0, bestStreak: 0,
@@ -100,8 +108,23 @@
   function equipped(st) { return st.bats.find((b) => b.id === st.equip) || st.bats[0]; }
 
   function fenceOf(st) { return STADIUMS[st.stadium].fence; }
-  function resistOf(s) { return Math.pow(RESIST, s); }
-  function coinMultOf(s) { return Math.pow(COIN_STEP, s); }
+  function resistOf(s) { return Math.pow(RESIST, Math.min(s, OUT_START - 1)); }
+  function coinMultOf(s) { return Math.pow(COIN_STEP, Math.min(s, OUT_START - 1)) * Math.pow(1.6, Math.max(0, s - OUT_START + 1)); }
+  // 은퇴(명예) 보너스
+  const HONOR_PCT = 0.03;
+  function honorMult(st) { return 1 + HONOR_PCT * (st.honor || 0); }
+  const RETIRE_AT = 5; // 6구장이 열리면 은퇴 가능
+  function canRetire(st) { return st.maxStadium >= RETIRE_AT; }
+  // 도달한 구장으로 명예 결정 (6구장 3점, 한 구장 오를 때마다 1.8배, 마지막 단계 클리어 시 2배)
+  function honorGain(st) { if (!canRetire(st)) return 0; let g = Math.round(3 * Math.pow(1.8, st.maxStadium - RETIRE_AT)); if (st.cleared.includes(STADIUMS.length - 1)) g *= 2; return g; }
+  function retire(st) {
+    const g = honorGain(st); if (!g) return 0;
+    st.honor = (st.honor || 0) + g; st.retires = (st.retires || 0) + 1;
+    st.coins = 0; st.stats = { power: 0, contact: 0, speed: 0, fame: 0, eye: 0 };
+    st.stadium = 0; st.maxStadium = 0; st.stadiumHR = [0]; st.cleared = [];
+    st.streak = 0; st.count = { b: 0, s: 0 }; st.eyeCombo = 0; st.meatball = false; st.runBest = 0;
+    return g;
+  }
 
   function perfectWindow(st) {
     const b = equipped(st);
@@ -142,12 +165,14 @@
     if (bonus) d *= bonus;
     let special = false;
     if (quality === 'perfect' && rng() < specialChance(st)) { special = true; d *= 2; }
+    d *= honorMult(st);
     d = Math.max(3, d);
     const hr = quality !== 'weak' && d >= fenceOf(st);
     let coins = d * 0.25 * coinMultOf(st.stadium) * fameMult(st.stats.fame) * (hr ? 3 : 1);
     if (b && b.t === 'luck') coins *= 1.15;
     if (manual) coins *= 1.2;
     if (fever) coins *= 2;
+    coins *= honorMult(st);
     return { quality, d, hr, coins: Math.max(1, Math.round(coins)), special };
   }
 
@@ -353,6 +378,7 @@
     st.totalHits++; st.count = { b: 0, s: 0 }; st.eyeCombo = 0;
     const ev = { gems: 0, cleared: false };
     if (r.d > st.best) st.best = r.d;
+    if (r.d > (st.runBest || 0)) st.runBest = r.d;
     if (r.special) { st.specials++; st.gems += 1; ev.gems += 1; }
     if (r.hr) {
       st.totalHR++; st.streak++; st.bestStreak = Math.max(st.bestStreak, st.streak);
@@ -379,6 +405,11 @@
     return { sec, coins: Math.floor(expectedCPS(st, 200) * sec * OFFLINE_RATE) };
   }
 
+  function fmtDist(m) {
+    if (m < 1000) return (Number.isInteger(m) || m >= 100 ? Math.round(m) : m.toFixed(1)) + 'm';
+    const k = m / 1000;
+    return (k < 10 ? parseFloat(k.toFixed(2)) : k < 100 ? parseFloat(k.toFixed(1)) : Math.round(k).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')) + 'km';
+  }
   const UNITS = ['', 'K', 'M', 'B', 'T', 'aa', 'ab', 'ac', 'ad', 'ae', 'af', 'ag'];
   function fmt(n, dp) {
     if (n == null || !isFinite(n)) return '0';
@@ -392,7 +423,7 @@
     GRADES, TRAITS, BAT_NAMES, ENH_RATE, ENH_MAX, DESTROY_CHANCE, STADIUMS, HR_TO_CLEAR, STATS, BOX, INV_MAX,
     PREMIUM_GEMS, TICKET_GEMS, OFFLINE_MAX, OFFLINE_RATE, QMULT,
     powerMult, speedMult, fameMult, statCost, batPower, batName, enhCost, enhRate, failText, newBat, newState,
-    equipped, fenceOf, coinMultOf, resistOf, perfectWindow, goodWindow, weakWindow, autoPerfect, rollAutoQuality, specialChance,
+    equipped, fenceOf, coinMultOf, resistOf, honorMult, canRetire, honorGain, retire, fmtDist, OUT_START, RETIRE_AT, HONOR_PCT, perfectWindow, goodWindow, weakWindow, autoPerfect, rollAutoQuality, specialChance,
     hitResult, cycleTime, takeTime, expectedCPS, simAuto, genPitch, swingOutcome, autoDecide, hitBonus, callPitch, resetCount, eyeOf, eyeRate, ballChance, edgeDist, PITCH_T, homerunRate, tryEnhance, removeBat, bestBat, woodPrice, normalBoxPrice, buy,
     mergeCandidates, merge, sell, applyHit, moveStadium, offlineReward, fmt,
   };

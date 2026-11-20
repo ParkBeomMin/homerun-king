@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const H = window.HR;
-  const VERSION = 'v0.2.1 베타';
+  const VERSION = 'v0.3 베타';
   const SAVE_KEY = 'hrk_save_v1';
   const fmt = H.fmt;
   const $ = (id) => document.getElementById(id);
@@ -141,6 +141,8 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   for (let i = 0; i < 6; i++) G.clouds.push({ x: Math.random(), y: 0.08 + Math.random() * 0.25, s: 0.6 + Math.random() * 0.8 });
 
   function nowS() { return performance.now() / 1000; }
+  function niceStep(x) { const p = Math.pow(10, Math.floor(Math.log10(Math.max(1, x)))), n = x / p; return (n < 1.5 ? 1 : n < 3.5 ? 2 : n < 7.5 ? 5 : 10) * p; }
+  function vib(pattern) { if (st.vibe === false) return; try { if (navigator.vibrate) navigator.vibrate(pattern); } catch (e) { /* noop */ } }
 
   function startPitch() {
     G.view = '1p'; G.phase = 'windup'; G.t = 0;
@@ -206,7 +208,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     G.zoom = big ? 1 : 0.5;
     burst(ix, iy, big ? 26 : 14, big ? '#fff3a0' : '#ffffff');
     SFX.crack(q);
-    if (big && navigator.vibrate) navigator.vibrate(45); else if (navigator.vibrate) navigator.vibrate(20);
+    vib(big ? 45 : 20);
     const lbl = { perfect: 'PERFECT!', good: 'GOOD', weak: '빗맞음' }[q];
     popText(lbl, q === 'perfect' ? '#ffe14d' : q === 'good' ? '#9fe8ff' : '#d0d0d0', q === 'perfect' ? 34 : 26, false, 0.3);
     if ((st.eyeCombo || 0) > 0 && q !== 'weak') popText('선구안 보너스 +' + st.eyeCombo * 10 + '%', '#7fffd4', 16, false, 0.42);
@@ -226,8 +228,8 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     if (res.ev === 'ball') { SFX.mitt(0.6); popText('볼', '#9fe8ff', 30); if (st.eyeCombo) popText('선구안 콤보 ' + st.eyeCombo + ' (+' + st.eyeCombo * 10 + '%)', '#7fffd4', 16, false, 0.4); }
     else if (res.ev === 'strike') { SFX.mitt(1); popText('스트라이크!', '#ffb0b0', 30); }
     else if (res.ev === 'swingmiss') { SFX.mitt(1); popText('헛스윙 스트라이크', '#ffb0b0', 26); }
-    else if (res.ev === 'walk') { SFX.mitt(0.6); SFX.coin(); popText('볼넷!', '#7fffd4', 40, true); floatCoin('+' + fmt(res.coins)); toast('볼넷 보너스! 다음 공은 한가운데 실투'); track('walk', {}); }
-    else if (res.ev === 'strikeout') { SFX.mitt(1); SFX.out(); popText(res.looking ? '루킹 삼진' : '삼진 아웃', '#ff7a7a', 36, true); G.shake = 0.12; track('strikeout', {}); }
+    else if (res.ev === 'walk') { SFX.mitt(0.6); SFX.coin(); popText('볼넷!', '#7fffd4', 40, true); floatCoin('+' + fmt(res.coins)); toast('볼넷 보너스! 다음 공은 한가운데 실투'); vib(25); track('walk', {}); }
+    else if (res.ev === 'strikeout') { SFX.mitt(1); SFX.out(); popText(res.looking ? '루킹 삼진' : '삼진 아웃', '#ff7a7a', 36, true); G.shake = 0.12; vib([60, 40, 60]); track('strikeout', {}); }
     updateHUD(); markDirty();
   }
 
@@ -237,14 +239,16 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     track('hit', { q: r.quality, hr: r.hr ? 1 : 0, manual: G.manual ? 1 : 0 });
     if (r.hr) {
       SFX.cheer(); G.shake = 0.35;
-      popText(r.special ? '특대 홈런!!' : 'HOMERUN!', r.special ? '#ffcc00' : '#fff', r.special ? 42 : 38, true);
+      const outS = H.STADIUMS[st.stadium].out;
+      popText(r.special ? (outS ? '초대형 장외 홈런!!' : '특대 홈런!!') : (outS ? '장외 홈런!' : 'HOMERUN!'), r.special ? '#ffcc00' : '#fff', r.special ? 40 : 38, true);
+      popText(H.fmtDist(r.d), '#ffe9a0', 22, false, 0.25);
       confetti();
-      if (navigator.vibrate) navigator.vibrate([30, 40, 60]);
+      vib(r.special ? [40, 40, 40, 40, 90] : [30, 40, 60]);
       if (st.streak === 5 || (st.streak > 5 && st.streak % 5 === 0)) {
         G.fever = nowS() + 15; toast('5연속 홈런! 15초 동안 코인 2배');
       }
-    } else if (r.quality !== 'weak') popText(r.d.toFixed(1) + 'm', '#fff');
-    else popText('땅볼 ' + r.d.toFixed(0) + 'm', '#d0d0d0', 22);
+    } else if (r.quality !== 'weak') popText(H.fmtDist(r.d), '#fff');
+    else popText('땅볼 ' + H.fmtDist(r.d), '#d0d0d0', 22);
     floatCoin('+' + fmt(r.coins));
     SFX.coin();
     if (ev.gems) toast('◆ 젬 +' + ev.gems + (r.special ? ' (특대 홈런 보너스)' : ''));
@@ -325,7 +329,8 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     } else if (G.phase === 'flight') {
       const r = G.result;
       const u = Math.min(1, 0.08 + G.t / G.flight);
-      const target = Math.max(H.fenceOf(st) + 14, r.d + 10);
+      const fz = H.fenceOf(st);
+      const target = H.STADIUMS[st.stadium].out ? Math.max(r.d * 1.2 + 10, Math.min(fz * 1.1, r.d * 4), 190) : Math.max(fz + 14, r.d + 10);
       const cu = Math.min(1, G.t / G.flight / 0.4), e = 1 - Math.pow(1 - cu, 3);
       G.camMin = G.camFrom[0] + (-4 - G.camFrom[0]) * e;
       G.camMax = G.camFrom[1] + (target - G.camFrom[1]) * e;
@@ -429,7 +434,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     ctx.fillStyle = S.moon ? '#5a5f70' : '#1f6b3a'; ctx.fillRect(-20, hy - 7, W + 40, 7);
     ctx.fillStyle = '#ffd84a'; ctx.fillRect(-20, hy - 7, W + 40, 1.5);
     ctx.font = '10px Jua'; ctx.fillStyle = '#fff'; ctx.textAlign = 'center';
-    ctx.fillText(S.fence + 'm', W / 2, hy - 0.5);
+    ctx.fillText(S.out ? '목표 ' + H.fmtDist(S.fence) : S.fence + 'm', W / 2, hy - 0.5);
     // 잔디
     const gg = ctx.createLinearGradient(0, hy, 0, Hh);
     gg.addColorStop(0, shade(S.grass, -10)); gg.addColorStop(1, shade(S.grass, 18));
@@ -703,7 +708,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
         const x = ((c.x * W * 1.6 - G.camMin * 2 + performance.now() * 0.004) % (W * 1.6)) - W * 0.3, y = c.y * gy;
         ctx.beginPath(); ctx.ellipse(x, y, 30 * c.s, 11 * c.s, 0, 0, 7); ctx.ellipse(x + 18 * c.s, y - 7 * c.s, 20 * c.s, 10 * c.s, 0, 0, 7); ctx.fill();
       }
-    } else {
+    } else if (S.out !== 'space') {
       for (const fx of [0.15, 0.85]) {
         const x = W * fx; ctx.fillStyle = '#20263a'; ctx.fillRect(x - 2, gy * 0.15, 4, gy * 0.5);
         ctx.fillStyle = '#fffbe0'; ctx.fillRect(x - 14, gy * 0.12, 28, 10);
@@ -712,24 +717,26 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       }
     }
     if (S.dome) { ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 2; for (let i = 1; i < 6; i++) { ctx.beginPath(); ctx.ellipse(W / 2, gy * 1.2, W * 0.9, gy * (0.2 * i), 0, Math.PI, 0); ctx.stroke(); } }
-    if (!S.dome) {
+    if (S.out && S.out !== 'parking') drawOutBack(S, gy);
+    else if (!S.dome) {
       ctx.fillStyle = S.moon ? '#3a3d4a' : S.night ? '#16224a' : 'rgba(80,150,90,.55)';
       for (let i = 0; i < 5; i++) {
         const x = ((i * 0.27 + 0.1) * W * 1.4 - G.camMin * 0.6) % (W * 1.4) - W * 0.2;
         ctx.beginPath(); ctx.ellipse(x, gy, W * 0.28, gy * 0.16 + (i % 2) * 12, 0, Math.PI, 0); ctx.fill();
       }
     }
-    const fence = H.fenceOf(st), fxp = sx(fence);
+    const fence = H.fenceOf(st), wallM = S.out ? 140 : fence, fxp = sx(wallM);
     if (fxp < W + 40) {
       const standTop = gy - Math.max(44, Math.min(gy * 0.32, 14 * ys));
       ctx.fillStyle = S.moon ? '#2b2f3e' : '#30405e';
-      ctx.beginPath(); ctx.moveTo(fxp, gy); ctx.lineTo(fxp + 20, standTop); ctx.lineTo(W + 50, standTop - 10); ctx.lineTo(W + 50, gy); ctx.fill();
+      const sEnd = S.out ? Math.max(fxp + 26, sx(wallM + 45)) : W + 50;
+      ctx.beginPath(); ctx.moveTo(fxp, gy); ctx.lineTo(fxp + 20, standTop); ctx.lineTo(sEnd, standTop - 10); ctx.lineTo(sEnd, gy); ctx.fill();
       const cols = ['#ff6b6b', '#ffd84a', '#5bb8ff', '#ffffff', '#4cd97b', '#ff9f55'];
       let k = 0;
       const jump = G.phase === 'result' && G.result && G.result.hr ? Math.sin(performance.now() / 60) * 2 : 0;
       for (let y = standTop + 8; y < gy - 6; y += 9) {
         const x0 = fxp + 20 * (1 - (y - standTop) / (gy - standTop)) + 6;
-        for (let x = x0; x < W + 10; x += 8) {
+        for (let x = x0; x < Math.min(W + 10, sEnd - 4); x += 8) {
           ctx.fillStyle = cols[(k++ * 7 + Math.floor(y)) % cols.length];
           ctx.fillRect(x, y + ((k % 2) ? jump : -jump), 4, 5);
         }
@@ -738,7 +745,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       ctx.fillStyle = S.moon ? '#5a5f70' : '#1f6b3a'; ctx.fillRect(fxp - 3, gy - fh, 7, fh);
       ctx.fillStyle = '#ffd84a'; ctx.fillRect(fxp - 3, gy - fh, 7, 3);
       ctx.fillStyle = '#fff'; ctx.font = '13px Jua'; ctx.textAlign = 'center';
-      ctx.fillText(fence + 'm', fxp, gy - fh - 6);
+      if (!S.out) ctx.fillText(fence + 'm', fxp, gy - fh - 6);
     }
     const gg = ctx.createLinearGradient(0, gy, 0, Hh);
     gg.addColorStop(0, S.grass); gg.addColorStop(1, shade(S.grass, -30));
@@ -746,16 +753,17 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     const stripe = 10;
     ctx.fillStyle = 'rgba(255,255,255,.07)';
     for (let m = Math.floor(G.camMin / stripe) * stripe; m < G.camMax; m += stripe * 2) ctx.fillRect(sx(m), gy, stripe * sc, Hh - gy);
+    if (S.out) drawOutFront(S, gy, sc, wallM, fence);
     ctx.fillStyle = S.moon ? '#6d6f78' : '#c58b55';
     ctx.beginPath(); ctx.ellipse(sx(0.5), gy + 4, 3.2 * sc, 10, 0, 0, 7); ctx.fill();
     ctx.beginPath(); ctx.ellipse(sx(18.4), gy + 3, 2.6 * sc, 8, 0, 0, 7); ctx.fill();
     ctx.fillStyle = '#fff'; ctx.fillRect(sx(0.2) - 6, gy + 2, 12, 3);
     const range = G.camMax - G.camMin;
-    const step = range < 40 ? 5 : range < 120 ? 10 : range < 300 ? 25 : range < 700 ? 50 : range < 1500 ? 100 : range < 4000 ? 250 : 1000;
+    const step = niceStep(range / 6);
     ctx.font = '11px Jua'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(255,255,255,.75)';
     for (let m = step; m < G.camMax; m += step) {
       if (m < G.camMin) continue;
-      const x = sx(m); ctx.fillRect(x - 0.5, gy + 6, 1, 6); ctx.fillText(m + 'm', x, gy + 24);
+      const x = sx(m); ctx.fillRect(x - 0.5, gy + 6, 1, 6); ctx.fillText(m < 1000 ? Math.round(m) + 'm' : H.fmtDist(m), x, gy + 24);
     }
     if (st.best > 0 && st.best > G.camMin && st.best < G.camMax && range > 30) {
       const x = sx(st.best); ctx.strokeStyle = '#ffd84a'; ctx.lineWidth = 2;
@@ -784,12 +792,86 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(bx, gy + 2, bs, bs * 0.4, 0, 0, 7); ctx.fill();
       if (G.phase === 'flight' && G.result && G.result.quality !== 'weak') {
         ctx.font = '18px Jua'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.lineWidth = 3;
-        const txt = Math.max(0, G.ballX).toFixed(1) + 'm';
+        const txt = H.fmtDist(Math.max(0, G.ballX));
         const ty = Math.max(20, by - 14);
         ctx.strokeText(txt, Math.min(W - 34, Math.max(34, bx)), ty); ctx.fillText(txt, Math.min(W - 34, Math.max(34, bx)), ty);
       }
     }
   }
+  // 장외 단계 배경 (화면 고정 원경)
+  function drawOutBack(S, gy) {
+    const par = G.camMin * 0.0;
+    if (S.out === 'city') {
+      for (let i = 0; i < 26; i++) {
+        const w = 16 + ((i * 37) % 22), h = gy * (0.14 + ((i * 53) % 30) / 100);
+        const x = ((i * 31.7 + par) % (W + 60)) - 30;
+        ctx.fillStyle = i % 3 ? '#56648a' : '#47557a'; ctx.fillRect(x, gy - h, w, h);
+        ctx.fillStyle = 'rgba(255,230,140,.55)';
+        for (let yy = gy - h + 5; yy < gy - 6; yy += 8) for (let xx = x + 3; xx < x + w - 3; xx += 6) if (((xx * 7 + yy * 3) | 0) % 5 < 2) ctx.fillRect(xx, yy, 2.5, 3);
+      }
+    } else if (S.out === 'sea') {
+      ctx.fillStyle = '#6f8fb5';
+      for (let i = 0; i < 6; i++) { const x = (i * 0.2 - 0.05) * W, h = gy * (0.3 + (i % 3) * 0.12); ctx.beginPath(); ctx.moveTo(x - W * 0.18, gy); ctx.lineTo(x, gy - h); ctx.lineTo(x + W * 0.18, gy); ctx.fill(); }
+      ctx.fillStyle = 'rgba(255,255,255,.7)';
+      for (let i = 0; i < 6; i++) { const x = (i * 0.2 - 0.05) * W, h = gy * (0.3 + (i % 3) * 0.12); ctx.beginPath(); ctx.moveTo(x - W * 0.04, gy - h * 0.78); ctx.lineTo(x, gy - h); ctx.lineTo(x + W * 0.04, gy - h * 0.78); ctx.fill(); }
+    } else if (S.out === 'sky') {
+      ctx.fillStyle = 'rgba(255,255,255,.9)';
+      for (let i = 0; i < 18; i++) { const x = (i / 17) * W * 1.1 - W * 0.05; ctx.beginPath(); ctx.ellipse(x, gy - 4 - (i % 3) * 6, W * 0.09, 14 + (i % 4) * 4, 0, 0, 7); ctx.fill(); }
+    } else if (S.out === 'space') {
+      const R = W * 1.6, cy = gy + R * 0.9;
+      const eg = ctx.createLinearGradient(0, cy - R, 0, gy);
+      eg.addColorStop(0, '#9fe0ff'); eg.addColorStop(0.35, '#3d8ae0'); eg.addColorStop(1, '#174a9e');
+      ctx.fillStyle = 'rgba(120,200,255,.25)'; ctx.beginPath(); ctx.arc(W / 2, cy, R + 8, 0, 7); ctx.fill();
+      ctx.fillStyle = eg; ctx.beginPath(); ctx.arc(W / 2, cy, R, 0, 7); ctx.fill();
+      ctx.fillStyle = 'rgba(90,190,110,.8)';
+      ctx.beginPath(); ctx.ellipse(W * 0.3, gy - 8, W * 0.12, 8, 0, 0, 7); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(W * 0.72, gy - 4, W * 0.08, 5, 0, 0, 7); ctx.fill();
+    }
+  }
+  // 장외 단계 지면과 목표 깃발
+  function drawOutFront(S, gy, sc, wallM, fence) {
+    const x0 = Math.max(-10, sx(wallM + 6));
+    if (x0 < W) {
+      if (S.out === 'parking' || S.out === 'city') {
+        ctx.fillStyle = '#6b6f78'; ctx.fillRect(x0, gy, W - x0 + 10, Hh - gy);
+        if (S.out === 'city') { ctx.fillStyle = '#ffd84a'; for (let m = wallM + 10; m < G.camMax; m += Math.max(4, niceStep((G.camMax - G.camMin) / 40))) ctx.fillRect(sx(m), gy + (Hh - gy) * 0.45, Math.max(2, sc * 2), 2); }
+        else if (sc * 6 > 5) {
+          const carC = ['#ff5a5a', '#5bb8ff', '#ffd84a', '#ffffff', '#4cd97b', '#333'];
+          for (let m = wallM + 12, k = 0; m < G.camMax; m += 6, k++) {
+            if (m < G.camMin) continue;
+            const x = sx(m), w = Math.max(6, sc * 4.4), h = Math.max(4, sc * 1.5);
+            ctx.fillStyle = carC[k % carC.length]; roundRect(x, gy - h, w, h, h * 0.3); ctx.fill();
+            ctx.fillStyle = 'rgba(160,220,255,.8)'; ctx.fillRect(x + w * 0.25, gy - h * 0.95, w * 0.4, h * 0.35);
+          }
+        }
+      } else if (S.out === 'sea') {
+        const sx0 = Math.max(-10, sx(wallM + 400));
+        const sg = ctx.createLinearGradient(0, gy - 4, 0, Hh); sg.addColorStop(0, '#3fa2e8'); sg.addColorStop(1, '#1b5fa8');
+        ctx.fillStyle = sg; ctx.fillRect(sx0, gy - 3, W - sx0 + 10, Hh - gy + 3);
+        ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 1.5;
+        for (let i = 0; i < 4; i++) { const y = gy + 6 + i * 10, o = (performance.now() / 30 + i * 20) % 30; ctx.beginPath(); for (let x = sx0 - o; x < W; x += 30) { ctx.moveTo(x, y); ctx.quadraticCurveTo(x + 7, y - 4, x + 14, y); } ctx.stroke(); }
+      } else if (S.out === 'sky') {
+        ctx.fillStyle = '#f4f8ff'; ctx.fillRect(x0, gy - 6, W - x0 + 10, Hh - gy + 6);
+        ctx.fillStyle = '#ffffff';
+        for (let i = 0; i < 14; i++) { const x = x0 + (i / 13) * (W - x0); ctx.beginPath(); ctx.ellipse(x, gy - 6, 22, 10 + (i % 3) * 3, 0, 0, 7); ctx.fill(); }
+      } else if (S.out === 'space') {
+        ctx.fillStyle = '#11162e'; ctx.fillRect(x0, gy, W - x0 + 10, Hh - gy);
+      }
+    }
+    // 목표 깃발
+    const fx = sx(fence);
+    ctx.font = '13px Jua'; ctx.textAlign = 'center';
+    if (fx <= W - 4) {
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(fx, gy); ctx.lineTo(fx, gy - 44); ctx.stroke();
+      for (let i = 0; i < 4; i++) for (let j = 0; j < 3; j++) { ctx.fillStyle = (i + j) % 2 ? '#111' : '#fff'; ctx.fillRect(fx + i * 5, gy - 44 + j * 5, 5, 5); }
+      ctx.fillStyle = '#ffd84a'; ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.lineWidth = 3;
+      ctx.strokeText('목표 ' + H.fmtDist(fence), fx, gy - 50); ctx.fillText('목표 ' + H.fmtDist(fence), fx, gy - 50);
+    } else {
+      ctx.textAlign = 'right'; ctx.fillStyle = '#ffd84a'; ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.lineWidth = 3;
+      const tx = '목표 ' + H.fmtDist(fence) + ' ▶'; ctx.strokeText(tx, W - 8, gy - 12); ctx.fillText(tx, W - 8, gy - 12);
+    }
+  }
+
   function flightYS() {
     if (G.phase === 'flight' || G.phase === 'result') {
       const r = G.result; if (!r) return yScale();
@@ -860,7 +942,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     $('tix').textContent = st.tickets;
     const S = H.STADIUMS[st.stadium];
     $('stadName').textContent = (st.stadium + 1) + '. ' + S.name;
-    $('fenceTxt').textContent = '펜스 ' + S.fence + 'm';
+    $('fenceTxt').textContent = (S.out ? '목표 ' : '펜스 ') + H.fmtDist(S.fence);
     const n = st.stadiumHR[st.stadium] || 0, cleared = st.cleared.includes(st.stadium);
     $('stadProg').style.width = (cleared ? 100 : Math.min(100, n / H.HR_TO_CLEAR * 100)) + '%';
     $('stadHR').textContent = cleared ? '클리어' : '홈런 ' + n + '/' + H.HR_TO_CLEAR;
@@ -980,21 +1062,28 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   }
 
   function renderStadium() {
-    let h = '<div class="h">구장</div>';
+    const can = H.canRetire(st), g = H.honorGain(st);
+    let h = `<div class="h">은퇴 <span class="r small">은퇴 ${st.retires || 0}회</span></div><div class="card">
+      <div class="row" style="justify-content:space-between"><div><div style="font-size:16px">🎖 명예 ${fmt(st.honor || 0)}</div>
+      <div class="small">명예 1점마다 비거리·코인 +${Math.round(H.HONOR_PCT * 100)}% · 지금 x${fmt(H.honorMult(st), 2)}</div></div>
+      <button class="btn ${can ? '' : 'gray'}" id="retireBtn" ${can ? '' : 'disabled'}>은퇴하기<span class="cost">${can ? '명예 +' + fmt(g) : '6구장부터'}</span></button></div>
+      <div class="small" style="margin-top:6px">${can ? '더 먼 구장까지 갈수록 받는 명예가 커져요. 방망이·젬·보호권은 그대로 남아요.' : '6구장(2군 구장)이 열리면 은퇴할 수 있어요. 은퇴하면 처음부터 다시 시작하지만 명예 보너스로 훨씬 빨리 올라가요.'}</div></div>
+      <div class="h">구장</div>`;
     H.STADIUMS.forEach((S, i) => {
       const lock = i > st.maxStadium, cur = i === st.stadium, cl = st.cleared.includes(i);
       const n = st.stadiumHR[i] || 0;
       h += `<div class="card st ${lock ? 'lock' : ''} ${cur ? 'cur' : ''}"><div class="num">${i + 1}</div><div style="flex:1;min-width:0">
       <div>${S.name} ${cl ? '<span class="grade" style="background:#4cd97b">클리어</span>' : ''}</div>
-      <div class="small">펜스 ${S.fence}m · 코인 x${fmt(H.coinMultOf(i), 1)} · ${lock ? '이전 구장 홈런 ' + H.HR_TO_CLEAR + '개로 열림' : '홈런 ' + n + '개'}</div></div>
+      <div class="small">${S.out ? '목표' : '펜스'} ${H.fmtDist(S.fence)} · 코인 x${fmt(H.coinMultOf(i), 1)} · ${lock ? '이전 구장 홈런 ' + H.HR_TO_CLEAR + '개로 열림' : '홈런 ' + n + '개'}</div></div>
       ${cur ? '<button class="btn sm gray" disabled>경기 중</button>' : lock ? '<button class="btn sm gray" disabled>잠김</button>' : `<button class="btn sm green" data-go="${i}">이동</button>`}</div>`;
     });
     h += `<div class="h">기록</div><div class="card small" style="line-height:1.7">
       총 홈런 <b style="color:#fff">${fmt(st.totalHR)}</b> · 총 타격 ${fmt(st.totalHits)}<br>
-      최고 비거리 <b style="color:#ffd84a">${st.best.toFixed(1)}m</b> · 최고 연속 홈런 ${st.bestStreak}<br>
+      최고 비거리 <b style="color:#ffd84a">${H.fmtDist(st.best)}</b> · 최고 연속 홈런 ${st.bestStreak}<br>
       특대 홈런 ${st.specials} · 강화 시도 ${st.enhTries} · 파괴된 방망이 ${st.destroyed}</div>
       <div class="h">설정</div><div class="card" style="display:flex;gap:8px">
       <button class="btn sm ${st.sound ? 'green' : 'gray'}" id="sndBtn">사운드 ${st.sound ? 'ON' : 'OFF'}</button>
+      <button class="btn sm ${st.vibe !== false ? 'green' : 'gray'}" id="vibBtn">진동 ${st.vibe !== false ? 'ON' : 'OFF'}</button>
       <button class="btn sm red" id="resetBtn">처음부터 하기</button></div>
       <div class="ver">홈런왕 키우기 ${VERSION}</div>`;
     return h;
@@ -1040,6 +1129,8 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     }
     if (d.go) { H.moveStadium(st, +d.go); SFX.click(); track('stadium_move', { s: +d.go + 1 }); afterMove(); return; }
     if (t.id === 'sndBtn') { st.sound = !st.sound; return renderPanel(); }
+    if (t.id === 'vibBtn') { st.vibe = st.vibe === false; if (st.vibe) vib(30); syncHaptic(); return renderPanel(); }
+    if (t.id === 'retireBtn') return retireModal();
     if (t.id === 'resetBtn') {
       return confirmModal('정말 처음부터 할까요? 모든 기록이 지워져요.', () => { localStorage.removeItem(SAVE_KEY); st = H.newState(); save(); afterMove(); toast('새로 시작했어요'); });
     }
@@ -1057,7 +1148,10 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     st.auto = !st.auto; audio(); SFX.click(); syncAuto();
   });
   function syncAuto() { const b = $('autoBtn'); b.classList.toggle('on', st.auto); b.textContent = '자동 타격 ' + (st.auto ? 'ON' : 'OFF'); }
-  $('fieldWrap').addEventListener('pointerdown', (e) => { e.preventDefault(); onTap(); });
+  $('fieldWrap').addEventListener('pointerdown', () => { onTap(); });
+  // 아이폰: 웹 진동 API가 없어서 투명 스위치를 탭하게 해 '톡' 햅틱을 낸다
+  const IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  function syncHaptic() { $('hapLbl').style.display = IOS && st.vibe !== false ? 'block' : 'none'; }
 
   // ---------- 모달 ----------
   const modal = $('modal');
@@ -1083,7 +1177,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       const im = $('rvImg'); if (!im) return;
       im.classList.remove('shake'); im.style.opacity = 1; im.style.filter = 'none'; im.style.transition = 'all .3s';
       $('rvTxt').style.visibility = 'visible';
-      if (b.g >= 3) { SFX.success(); confetti(); }
+      if (b.g >= 3) { SFX.success(); confetti(); vib(b.g >= 4 ? [30, 30, 30, 30, 120] : [30, 40, 60]); }
       const eq = $('rvEq'); if (eq) eq.onclick = () => { st.equip = b.id; cpsAt = 0; closeModal(); updateHUD(); renderPanel(); };
     }, b.g >= 3 ? 1100 : 600);
   }
@@ -1099,11 +1193,11 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     setTimeout(() => {
       let html;
       const nb = st.bats.find((x) => x.id === b.id);
-      if (r.result === 'success') { SFX.success(); html = `<h2>강화 성공!</h2><div class="bimg glow">${batSVG(nb)}</div><div class="res" style="color:#4cd97b">+${r.e} 달성</div>`; if (r.e >= 10) confetti(); }
+      if (r.result === 'success') { SFX.success(); vib([20, 30, 40]); html = `<h2>강화 성공!</h2><div class="bimg glow">${batSVG(nb)}</div><div class="res" style="color:#4cd97b">+${r.e} 달성</div>`; if (r.e >= 10) confetti(); }
       else if (r.result === 'keep') { SFX.fail(); html = `<h2>강화 실패</h2><div class="bimg">${batSVG(nb)}</div><div class="res" style="color:#ffd84a">단계 유지 +${r.e}</div>`; }
       else if (r.result === 'down') { SFX.fail(); html = `<h2>강화 실패</h2><div class="bimg">${batSVG(nb)}</div><div class="res" style="color:#ff9a6a">+${before} → +${r.e} 하락</div>`; }
-      else if (r.result === 'saved') { SFX.saved(); html = `<h2>휴, 살았다!</h2><div class="bimg">${batSVG(nb)}</div><div class="res" style="color:#6ff0ff">보호권이 파괴를 막았어요</div><p>+${before} → +${r.e}, 남은 보호권 ${st.tickets}개</p>`; }
-      else { SFX.destroy(); G.shake = 0.4; html = `<h2>방망이 파괴...</h2><div class="res" style="color:#ff5a5a">${name} +${before} 파괴됨</div><p>보유한 가장 강한 방망이를 장착했어요</p>`; }
+      else if (r.result === 'saved') { SFX.saved(); vib([30, 60, 30]); html = `<h2>휴, 살았다!</h2><div class="bimg">${batSVG(nb)}</div><div class="res" style="color:#6ff0ff">보호권이 파괴를 막았어요</div><p>+${before} → +${r.e}, 남은 보호권 ${st.tickets}개</p>`; }
+      else { SFX.destroy(); vib([100, 50, 200]); G.shake = 0.4; html = `<h2>방망이 파괴...</h2><div class="res" style="color:#ff5a5a">${name} +${before} 파괴됨</div><p>보유한 가장 강한 방망이를 장착했어요</p>`; }
       openModal(html + `<div class="mbtns"><button class="btn gray" data-close>닫기</button>${r.result !== 'destroy' && nb && nb.e < H.ENH_MAX ? '<button class="btn" id="again">한 번 더</button>' : ''}</div>`);
       const ag = $('again'); if (ag) ag.onclick = () => { closeModal(); doEnhance(); };
       cpsAt = 0; updateHUD(); renderPanel(); save();
@@ -1112,14 +1206,14 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
 
   function infoModal() {
     const b = H.equipped(st), S = H.STADIUMS[st.stadium];
-    const perfD = 32 * H.powerMult(st.stats.power) * H.batPower(b) * 1.5 / H.resistOf(st.stadium);
+    const perfD = 32 * H.powerMult(st.stats.power) * H.batPower(b) * 1.5 / H.resistOf(st.stadium) * H.honorMult(st);
     const sim = H.simAuto(st, 500, 777);
     const pct = (v) => Math.round(v * 100) + '%';
     const row = (k, v, hl) => `<div class="ir"><span>${k}</span><b${hl ? ' class="hl"' : ''}>${v}</b></div>`;
     openModal(`<h2>📊 타격 정보</h2>
       <div class="isec">타격</div>
-      ${row('퍼펙트 예상 비거리', perfD.toFixed(1) + 'm', perfD >= S.fence)}
-      ${row('지금 구장 펜스', S.fence + 'm')}
+      ${row('퍼펙트 예상 비거리', H.fmtDist(perfD), perfD >= S.fence)}
+      ${row(S.out ? '이번 단계 목표' : '지금 구장 펜스', H.fmtDist(S.fence))}
       ${row('방망이 파워', 'x' + fmt(H.batPower(b), 2))}
       ${row('퍼펙트 판정 범위', '±' + Math.round(H.perfectWindow(st) * 1000) + 'ms')}
       ${row('특대 홈런 (퍼펙트 시)', pct(H.specialChance(st)))}
@@ -1130,6 +1224,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       ${row('초당 코인', fmt(sim.cps))}
       <div class="isec">보너스</div>
       ${row('코인 배율', '인기 x' + fmt(H.fameMult(st.stats.fame), 2) + ' · 구장 x' + fmt(H.coinMultOf(st.stadium), 1))}
+      ${row('명예 보너스', st.honor ? '비거리·코인 x' + fmt(H.honorMult(st), 2) + ' (명예 ' + fmt(st.honor) + ')' : '없음')}
       ${row('선구안 콤보', st.eyeCombo ? '+' + st.eyeCombo * 10 + '% 비거리' : '없음')}
       ${row('직접 타격', '퍼펙트 비거리 +15%, 코인 +20%')}
       <div class="isec">팁</div>
@@ -1137,10 +1232,26 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       <div class="mbtns"><button class="btn big" data-close>닫기</button></div>`);
   }
 
+  function retireModal() {
+    const g = H.honorGain(st); if (!g) return;
+    openModal(`<h2>🎖 은퇴할까요?</h2><p>명예 <b style="color:#ffd84a">+${fmt(g)}</b> → 총 ${fmt((st.honor || 0) + g)}<br>비거리·코인 x${fmt(H.honorMult(st), 2)} → x${fmt(1 + H.HONOR_PCT * ((st.honor || 0) + g), 2)}</p>
+      <div class="ir"><span>초기화</span><b>코인, 타자 능력치, 구장 진행</b></div>
+      <div class="ir"><span>그대로 유지</span><b>방망이, 젬, 보호권, 기록</b></div>
+      <div class="mbtns"><button class="btn gray" data-close>조금 더 할게요</button><button class="btn" id="doRetire">은퇴식 하기</button></div>`);
+    $('doRetire').onclick = () => {
+      const got = H.retire(st);
+      track('retire', { honor: got, n: st.retires });
+      closeModal(); afterMove(); save();
+      SFX.success(); confetti(); vib([40, 40, 40, 40, 120]);
+      openModal(`<h2>🎉 은퇴식</h2><p>${st.retires}번째 시즌을 마쳤어요.</p><div class="res" style="color:#ffd84a">명예 +${fmt(got)}</div>
+        <p>이제 비거리와 코인이 x${fmt(H.honorMult(st), 2)}! 동네 공터부터 다시 시작해요.</p><div class="mbtns"><button class="btn big" data-close>새 시즌 시작</button></div>`);
+    };
+  }
+
   function clearModal() {
     const s = st.stadium, next = H.STADIUMS[s + 1];
     SFX.success(); confetti();
-    openModal(`<h2>🏆 ${H.STADIUMS[s].name} 클리어!</h2><p>젬 +${15 + s * 5}</p>${next ? `<p>다음 구장 <b style="color:#fff">${next.name}</b>이 열렸어요.<br>펜스 ${next.fence}m, 투수가 더 강하지만 코인은 ${fmt(H.coinMultOf(1), 1)}배!</p>
+    openModal(`<h2>🏆 ${H.STADIUMS[s].name} 클리어!</h2><p>젬 +${15 + s * 5}</p>${next ? `<p>다음 구장 <b style="color:#fff">${next.name}</b>이 열렸어요.<br>${next.out ? '목표 ' + H.fmtDist(next.fence) + '! 구장 밖까지 날려보세요' : '펜스 ' + next.fence + 'm, 투수가 더 강하지만 코인은 ' + fmt(H.coinMultOf(s + 1) / H.coinMultOf(s), 1) + '배!'}</p>
       <div class="mbtns"><button class="btn gray" data-close>조금 더 여기서</button><button class="btn green" id="goNext">이동하기</button></div>` : '<p>마지막 구장까지 정복했어요!</p><div class="mbtns"><button class="btn" data-close>확인</button></div>'}`);
     const g = $('goNext'); if (g) g.onclick = () => { H.moveStadium(st, s + 1); closeModal(); afterMove(); };
   }
@@ -1179,7 +1290,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
 
   // ---------- 시작 ----------
   const had = load();
-  resize(); syncAuto(); startPitch();
+  resize(); syncAuto(); syncHaptic(); startPitch();
   if (!st.tutorial) $('tapHint').style.display = 'none';
   updateHUD(); renderPanel();
   if (had) { const o = H.offlineReward(st, Date.now()); if (o.coins > 0) offlineModal(o); }
