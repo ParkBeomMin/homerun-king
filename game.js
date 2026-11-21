@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const H = window.HR;
-  const VERSION = 'v0.10.2 베타';
+  const VERSION = 'v0.11 베타';
   const SAVE_KEY = 'hrk_save_v1';
   const fmt = H.fmt;
   const $ = (id) => document.getElementById(id);
@@ -1543,7 +1543,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       <button class="btn sm ${st.bgm !== false ? 'green' : 'gray'}" id="bgmBtn">배경음 ${st.bgm !== false ? 'ON' : 'OFF'}</button>
       <button class="btn sm ${st.voice !== false ? 'green' : 'gray'}" id="voiceBtn">음성 ${st.voice !== false ? 'ON' : 'OFF'}</button>
       <button class="btn sm ${st.layout === 'bottom' ? 'green' : 'gray'}" id="layBtn">📱 타석 ${st.layout === 'bottom' ? '아래 (켜짐)' : '아래로'}</button>
-      <button class="btn sm blue" id="langBtn">🌐 ${window.HRK_LANG === 'en' ? 'KOR' : 'English'}</button>
+      <button class="btn sm blue" id="langBtn">🌐 ${{ ko: 'English', en: '日本語', ja: '한국어' }[window.HRK_LANG] || 'English'}</button>
       <button class="btn sm ${st.sound ? 'green' : 'gray'}" id="sndBtn">사운드 ${st.sound ? 'ON' : 'OFF'}</button>
       <button class="btn sm ${st.vibe !== false ? 'green' : 'gray'}" id="vibBtn">진동 ${st.vibe !== false ? 'ON' : 'OFF'}</button>
       <button class="btn sm red" id="resetBtn">처음부터 하기</button></div>
@@ -1635,7 +1635,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     if (t.id === 'vibBtn') { st.vibe = st.vibe === false; if (st.vibe) vib(30); syncHaptic(); return renderPanel(); }
     if (t.id === 'retireBtn') return retireModal();
     if (t.id === 'layBtn') return toggleLayout('setting');
-    if (t.id === 'langBtn') { save(); window.setLang(window.HRK_LANG === 'en' ? 'ko' : 'en'); return; }
+    if (t.id === 'langBtn') { save(); window.setLang({ ko: 'en', en: 'ja', ja: 'ko' }[window.HRK_LANG] || 'en'); return; }
     if (t.id === 'voiceBtn') { st.voice = st.voice === false; if (st.voice) VOICE.play('ball', 0.7); return renderPanel(); }
     if (t.id === 'bgmBtn') { st.bgm = st.bgm === false; BGM.sync(); return renderPanel(); }
     if (t.id === 'shareBtn') return shareCard();
