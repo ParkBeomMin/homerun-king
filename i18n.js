@@ -252,7 +252,7 @@
     ['진동', 'Vibration'], ['누적', 'Total'], ['보상', 'Reward'], ['업적', 'Achievements'], ['받기', 'Claim'], ['확인', 'OK'], ['취소', 'Cancel'],
     ['달성', 'reached'], ['하락', 'drop'], ['닫기', 'Close'], ['타격', 'Batting'], ['출석', 'Check-in'], ['일차', '-day'], ['시간', 'h'],
     ['일반', 'Common'], ['나무', 'Wood'], ['고급', 'Rare'], ['희귀', 'Epic'], ['카본', 'Carbon'], ['영웅', 'Hero'], ['전설', 'Legend'], ['신화', 'Mythic'], ['한정', 'Limited'],
-    ['컨택', 'Contact'], ['행운', 'Luck'], ['정확', 'Accuracy'], ['인기', 'Fame'], ['직구', 'Fastball'], ['커브', 'Curve'], ['분치', ' min worth'],
+    ['힘', 'Power'], ['컨택', 'Contact'], ['행운', 'Luck'], ['정확', 'Accuracy'], ['인기', 'Fame'], ['직구', 'Fastball'], ['커브', 'Curve'], ['분치', ' min worth'],
     ['펜스', 'Fence'], ['초당', '/sec'], ['타자', 'Batter'], ['미션', 'Missions'], ['볼!', 'BALL!'], ['볼', 'Ball'], ['스트라이크', 'Strike'],
     ['완료', 'Done'], ['구', ''], ['일', 'd'], ['개', ''], ['번', 'x'], ['명', ''], ['회', ''], ['배', 'x'], ['위', ''], ['쌤', ''],
     ['자동', 'Auto'], ['직접', 'Manual'], ['상자', 'Box'], ['오픈', 'opened'], ['보스', 'Boss'], ['더비', 'Derby'], ['연습', 'Practice'],

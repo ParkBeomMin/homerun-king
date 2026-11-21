@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const H = window.HR;
-  const VERSION = 'v0.10.1 베타';
+  const VERSION = 'v0.10.2 베타';
   const SAVE_KEY = 'hrk_save_v1';
   const fmt = H.fmt;
   const $ = (id) => document.getElementById(id);
@@ -1383,6 +1383,21 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     panel.scrollTop = y;
   }
 
+  // 버튼 누른 효과: 버튼 튕김, 카드 빛, 떠오르는 글자, 반짝이 (패널이 다시 그려져도 새 버튼에 붙인다)
+  function uiFx() { let l = $('uifx'); if (!l) { l = document.createElement('div'); l.id = 'uifx'; document.body.appendChild(l); } return l; }
+  function pressFx(el, text, cols) {
+    if (!el) return;
+    el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+    const card = el.closest('.card'); if (card) { card.classList.remove('glow'); void card.offsetWidth; card.classList.add('glow'); }
+    const r = el.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, L = uiFx();
+    cols = cols || ['#ffe14d', '#fff3a0', '#ffffff', '#ffb347'];
+    for (let i = 0; i < 12; i++) {
+      const a = Math.random() * Math.PI * 2, d = 28 + Math.random() * 34, sp = document.createElement('i'); sp.className = 'sp';
+      sp.style.cssText = `left:${cx - 3}px;top:${cy - 3}px;background:${cols[i % cols.length]};--dx:${Math.cos(a) * d}px;--dy:${Math.sin(a) * d}px`;
+      L.appendChild(sp); setTimeout(() => sp.remove(), 750);
+    }
+    if (text) { const ft = document.createElement('div'); ft.className = 'ft'; ft.textContent = text; ft.style.left = cx + 'px'; ft.style.top = (r.top - 4) + 'px'; L.appendChild(ft); setTimeout(() => ft.remove(), 1050); }
+  }
   function bulkCost(k) {
     let lv = st.stats[k], c = 0, n = 0;
     const max = H.STATS[k].max;
@@ -1580,10 +1595,12 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       if (st.coins < c) return;
       st.coins -= c; st.stats[d.stat] += n; SFX.up(); track('stat_up', { k: d.stat, lv: st.stats[d.stat] });
       if (d.stat === 'speed') G.sp = H.speedMult(st.stats.speed);
-      cpsAt = 0; updateHUD(); return renderPanel();
+      cpsAt = 0; updateHUD(); renderPanel(); vib(12);
+      pressFx(panel.querySelector(`[data-stat="${d.stat}"]`), H.STATS[d.stat].name + ' Lv.' + st.stats[d.stat] + (n > 1 ? ' (+' + n + ')' : ''));
+      return;
     }
     if (t.id === 'useTicket') { st.useTicket = t.checked; return; }
-    if (t.id === 'enhBtn') return doEnhance();
+    if (t.id === 'enhBtn') { pressFx(t, null, ['#ffe14d', '#ff9f55', '#ffffff']); vib(15); return doEnhance(); }
     if (t.id === 'infoBtn') { SFX.click(); return infoModal(); }
     if (d.merge) {
       const r = H.merge(st, +d.merge);
