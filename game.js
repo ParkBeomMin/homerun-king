@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const H = window.HR;
-  const VERSION = 'v0.10 베타';
+  const VERSION = 'v0.10.1 베타';
   const SAVE_KEY = 'hrk_save_v1';
   const fmt = H.fmt;
   const $ = (id) => document.getElementById(id);
@@ -166,7 +166,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       for (const who of ['pitcher', 'batter', 'side', 'boss', 'hold']) {
         const c = cal[who]; if (!c) continue;
         const frames = []; let left = c.n;
-        for (let i = 0; i < c.n; i++) { const im = new Image(); im.onload = () => { frames[i] = im; if (--left === 0) ART[who] = frames; }; im.src = 'assets/sprites/' + (who === 'hold' ? 'holdb' : who) + '_' + i + '.webp'; }
+        for (let i = 0; i < c.n; i++) { const im = new Image(); im.onload = () => { frames[i] = im; if (--left === 0) ART[who] = frames; }; im.src = 'assets/sprites/' + (who === 'hold' ? 'holdc' : who) + '_' + i + '.webp'; }
       }
     }).catch(() => {});
   }
@@ -908,8 +908,8 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   }
 
   // 방망이 없는 타자 그림 + 상점에서 산 실제 방망이 그림을 손 위치에 맞춰 합성한다
-  // HOLDAX: 원래 그림의 방망이 축(손잡이 끝 k, 끝 t, 굵기 w, 모두 프레임 비율). 3번 프레임만 방망이가 몸 앞
-  const HOLDAX = [{"k": [0.8173, 0.3467], "t": [0.9257, 0.0045], "w": 0.0794}, {"k": [0.9537, 0.4515], "t": [-0.0005, 0.4302], "w": 0.0786}, {"k": [0.6119, 0.485], "t": [0.997, 0.4733], "w": 0.0756}, {"k": [0.1469, 0.4044], "t": [0.9939, 0.5376], "w": 0.0897}];
+  // HOLDAX: 방망이 축(손잡이 끝 k, 끝 t, 굵기 w, 모두 프레임 비율). 손잡이 끝은 장갑 아래까지 내려서 손이 감싸 쥔 것처럼 보이게. 3번 프레임만 방망이가 몸 앞
+  const HOLDAX = [{"k": [0.7678, 0.503], "t": [0.9257, 0.0045], "w": 0.0794}, {"k": [0.9537, 0.4515], "t": [-0.0005, 0.4302], "w": 0.0786}, {"k": [0.4616, 0.4896], "t": [0.997, 0.4733], "w": 0.0756}, {"k": [0.1469, 0.4044], "t": [0.9939, 0.5376], "w": 0.0897}];
   const HOLDC = {}, BATIMG = {};
   function batImg(b) {
     const key = H.batKey(b);
