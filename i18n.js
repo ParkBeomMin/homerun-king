@@ -28,7 +28,7 @@
     ['랭킹 도전에서 7개 이상 치면 한정 방망이!', 'Hit 7+ in a ranked try to earn a limited bat!'],
     ['10구장 보스 첫 격파', 'First win vs the Stadium 10 boss'],
     ['🏆 한정 방망이 획득!', '🏆 Limited bat earned!'], ['🎉 한정 방망이 획득!', '🎉 Limited bat earned!'],
-    ['한정 방망이!', 'Limited bat!'], ['신화 방망이 획득', 'Get a Mythic bat'],
+    ['한정 방망이!', 'Limited bat!'], ['태양 폭발!', 'Solar Burst!'], ['오로라 일섬!', 'Aurora Strike!'], ['무지개 용의 포효!', 'Rainbow Dragon Roar!'], ['보스 사냥!', 'Boss Hunt!'], ['챔피언 샷!', 'Champion Shot!'], ['개막 축포!', 'Opening Fireworks!'], ['신화 방망이 획득', 'Get a Mythic bat'],
     ['태양 폭발 배트', 'Solar Burst Bat'], ['오로라 바늘 배트', 'Aurora Needle Bat'], ['무지개 용 배트', 'Rainbow Dragon Bat'],
     ['보스 사냥꾼 배트', 'Boss Hunter Bat'], ['더비 챔피언 배트', 'Derby Champion Bat'], ['개막 시즌 배트', 'Opening Season Bat'],
     ['다른 기기에서 만든 8자리 이전 코드를 입력하세요. 지금 이 기기의 기록은 덮어써져요.', 'Enter the 8-character transfer code from your other device. Progress on this device will be overwritten.'],

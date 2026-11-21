@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const H = window.HR;
-  const VERSION = 'v0.9 베타';
+  const VERSION = 'v0.9.1 베타';
   const SAVE_KEY = 'hrk_save_v1';
   const fmt = H.fmt;
   const $ = (id) => document.getElementById(id);
@@ -195,7 +195,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     result: null, call: null, hitP: null,
     freeze: 0, slow: 0, flash: 0, flashC: '#fff', shake: 0, cut: 0, zoom: 0,
     camMin: -4, camMax: 21, camFrom: null, flight: 1.4,
-    ballX: 0, ballY: 0, ballVis: false, trail: [], trail1: [], batTrail: [], impact: null, launch: null,
+    ballX: 0, ballY: 0, ballVis: false, rings: [], rainbow: 0, aurora: 0, crown: 0, bfx: null, trail: [], trail1: [], batTrail: [], impact: null, launch: null,
     fx: [], texts: [], manualUntil: 0, fever: 0, clouds: [], crowdSeed: Math.random() * 1000,
     mode: 'normal', derby: null, boss: null, intro: null,
   };
@@ -209,7 +209,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     G.view = '1p'; G.phase = 'windup'; G.t = 0;
     G.pitch = H.genPitch(st, Math.random, { strikeOnly: G.mode === 'derby', boss: G.mode === 'boss' });
     G.swingT = -1; G.swingQ = null; G.manual = false; G.autoTake = false; G.pendingQ = null;
-    G.result = null; G.call = null; G.ballVis = false; G.trail = []; G.trail1 = []; G.batTrail = []; G.impact = null; G.launch = null;
+    G.result = null; G.call = null; G.ballVis = false; G.bfx = null; G.trail = []; G.trail1 = []; G.batTrail = []; G.impact = null; G.launch = null;
     G.sp = H.speedMult(st.stats.speed); G.zoom = 0;
   }
 
@@ -312,6 +312,8 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     G.impact = { x: ix, y: iy, t: 0, q };
     G.zoom = big ? 1 : 0.5;
     burst(ix, iy, big ? 26 : 14, big ? '#fff3a0' : '#ffffff');
+    G.bfx = r.hr ? batFx() : null;
+    if (G.bfx) fxImpact(G.bfx, ix, iy);
     SFX.crack(q);
     vib(big ? 45 : 20);
     const lbl = { perfect: 'PERFECT!', good: 'GOOD', weak: '빗맞음' }[q];
@@ -351,7 +353,8 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       const outS = H.STADIUMS[st.stadium].out;
       popText(r.special ? (outS ? '초대형 장외 홈런!!' : '특대 홈런!!') : (outS ? '장외 홈런!' : 'HOMERUN!'), r.special ? '#ffcc00' : '#fff', r.special ? 40 : 38, true);
       popText(H.fmtDist(r.d), '#ffe9a0', 22, false, 0.25);
-      confetti();
+      if (G.bfx) fxLand(G.bfx, G.view === 'side' ? Math.min(W - 20, Math.max(20, sx(G.ballX))) : W / 2, G.view === 'side' ? groundY() - 10 : Hh * 0.4);
+      if (!G.bfx || G.bfx.land !== 'crown') confetti();
       vib(r.special ? [40, 40, 40, 40, 90] : [30, 40, 60]);
       if (st.streak === 5 || (st.streak > 5 && st.streak % 5 === 0)) {
         G.fever = nowS() + 15; toast('5연속 홈런! 15초 동안 코인 2배');
@@ -380,6 +383,102 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     }
   }
 
+  // ---------- 특수 방망이 홈런 효과 (신화 3종, 한정 3종) ----------
+  const BATFX = {
+    g5_power: { name: '태양 폭발!', flash: '#ffb347', cols: ['#ff4d00', '#ff9a1f', '#ffd84a', '#fff1a8'], trail: 'fire', land: 'blast' },
+    g5_contact: { name: '오로라 일섬!', flash: '#9ffcff', cols: ['#4dfff0', '#7fb8ff', '#c08cff', '#ffffff'], trail: 'ribbon', land: 'aurora' },
+    g5_luck: { name: '무지개 용의 포효!', flash: '#ffd6f5', cols: ['#ff4d4d', '#ffa53d', '#ffe14d', '#4cd97b', '#4dc3ff', '#9b6bff'], trail: 'rainbow', land: 'rainbow' },
+    sp_boss: { name: '보스 사냥!', flash: '#ff2a2a', cols: ['#ff2a2a', '#8a0000', '#ff7a7a', '#222'], trail: 'smoke', land: 'shock' },
+    sp_derby: { name: '챔피언 샷!', flash: '#fff0a0', cols: ['#ffd700', '#ffe98a', '#ffffff', '#f5b800'], trail: 'gold', land: 'crown' },
+    sp_season: { name: '개막 축포!', flash: '#ffffff', cols: ['#ff4d6d', '#4d9bff', '#ffd84a', '#4cd97b', '#ffffff'], trail: 'confetti', land: 'fireworks' },
+  };
+  function batFx() { const b = H.equipped(st); return b ? BATFX[H.batKey(b)] || null : null; }
+  function burstC(x, y, n, cols, sp, life, grav) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2, v = (sp || 200) * (0.4 + Math.random() * 0.8);
+      G.fx.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: (life || 0.6) * (0.6 + Math.random() * 0.6), t: 0, c: cols[i % cols.length], r: 2 + Math.random() * 3, ng: !grav });
+    }
+  }
+  function ring(x, y, c, r1, life, w) { G.rings.push({ x, y, c, r1, life, w: w || 6, t: 0 }); }
+  function fxImpact(F, x, y) {
+    G.flashC = F.flash;
+    burstC(x, y, 34, F.cols, 320, 0.6, true); ring(x, y, F.cols[0], 90, 0.4, 7);
+    if (F.trail === 'smoke') ring(x, y, '#ff2a2a', 150, 0.5, 4);
+  }
+  // 날아가는 공 꼬리 (옆 시점, 화면 좌표)
+  function fxTrail(F, pts, bs) {
+    if (pts.length < 2) return;
+    const n = pts.length, tm = performance.now() / 1000;
+    ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    if (F.trail === 'ribbon' || F.trail === 'rainbow') {
+      const bands = F.trail === 'rainbow' ? F.cols : ['#4dfff0', '#7fb8ff', '#c08cff'];
+      bands.forEach((c, k) => {
+        const off = (k - (bands.length - 1) / 2) * bs * 0.9;
+        ctx.strokeStyle = c; ctx.globalAlpha = 0.75; ctx.lineWidth = bs * 0.9;
+        ctx.beginPath(); pts.forEach(([x, y], i) => { const wv = F.trail === 'ribbon' ? Math.sin(tm * 8 + i * 0.7) * bs * 0.6 : 0; i ? ctx.lineTo(x, y + off + wv) : ctx.moveTo(x, y + off + wv); }); ctx.stroke();
+      });
+    } else {
+      for (let i = 0; i < n; i++) {
+        const [x, y] = pts[i], a = i / n, r = bs * (0.5 + a * (F.trail === 'fire' ? 1.8 : F.trail === 'smoke' ? 1.6 : 1.1));
+        ctx.globalAlpha = a * 0.8;
+        if (F.trail === 'fire') ctx.fillStyle = a > 0.75 ? '#fff1a8' : a > 0.45 ? '#ff9a1f' : '#ff4d00';
+        else if (F.trail === 'smoke') ctx.fillStyle = i % 2 ? '#ff2a2a' : '#3a0a0a';
+        else if (F.trail === 'gold') ctx.fillStyle = i % 3 ? '#ffd700' : '#fff';
+        else ctx.fillStyle = F.cols[i % F.cols.length];
+        ctx.beginPath();
+        if (F.trail === 'confetti') { ctx.save(); ctx.translate(x, y + Math.sin(tm * 9 + i) * bs); ctx.rotate(i + tm * 5); ctx.fillRect(-r, -r / 2, r * 2, r); ctx.restore(); }
+        else ctx.arc(x, y + (F.trail === 'fire' ? -Math.random() * bs * 0.6 : 0), r, 0, 7);
+        ctx.fill();
+      }
+    }
+    // 공 주변 빛
+    const [hx, hy] = pts[n - 1];
+    ctx.globalAlpha = 0.45 + Math.sin(tm * 14) * 0.15; ctx.fillStyle = F.cols[0];
+    ctx.beginPath(); ctx.arc(hx, hy, bs * 3.2, 0, 7); ctx.fill();
+    ctx.restore();
+  }
+  function fxTrailParticles(F, x, y) {
+    if (Math.random() < 0.5) return;
+    const c = F.cols[(Math.random() * F.cols.length) | 0];
+    G.fx.push({ x: x + (Math.random() - 0.5) * 6, y: y + (Math.random() - 0.5) * 6, vx: (Math.random() - 0.5) * 40, vy: F.trail === 'fire' ? -30 - Math.random() * 40 : (Math.random() - 0.5) * 40, life: 0.5, t: 0, c, r: 1.5 + Math.random() * 2.5, ng: true, conf: F.trail === 'confetti', rot: Math.random() * 6 });
+  }
+  function fxLand(F, x, y) {
+    popText(F.name, F.cols[0], 30, false, 0.15);
+    if (F.land === 'blast') { G.flash = 0.5; G.flashC = '#ff9a1f'; G.shake = 0.5; burstC(x, y, 70, F.cols, 420, 0.9, true); ring(x, y, '#ff9a1f', 160, 0.6, 10); ring(x, y, '#fff1a8', 90, 0.45, 6); }
+    else if (F.land === 'aurora') { G.aurora = 2.2; burstC(x, y, 40, F.cols, 260, 1.1, false); for (let i = 0; i < 40; i++) G.fx.push({ x: Math.random() * W, y: -10 - Math.random() * 80, vx: 0, vy: 50 + Math.random() * 70, life: 1.8, t: 0, c: F.cols[i % 4], r: 1.5 + Math.random() * 2, ng: true, star: true }); }
+    else if (F.land === 'rainbow') { G.rainbow = 2.4; burstC(x, y, 60, F.cols, 330, 1, true); ring(x, y, '#ffe14d', 120, 0.5, 6); }
+    else if (F.land === 'shock') { G.flash = 0.45; G.flashC = '#ff2a2a'; G.shake = 0.6; ring(x, y, '#ff2a2a', 220, 0.6, 12); ring(x, y, '#1a0000', 150, 0.5, 8); burstC(x, y, 50, F.cols, 380, 0.8, true); vib([80, 30, 120]); }
+    else if (F.land === 'crown') { G.crown = 1.8; for (let i = 0; i < 80; i++) G.fx.push({ x: Math.random() * W, y: -10 - Math.random() * 60, vx: (Math.random() - 0.5) * 60, vy: 70 + Math.random() * 120, life: 2 + Math.random(), t: 0, c: F.cols[i % 4], r: 3 + Math.random() * 2, conf: true, rot: Math.random() * 6 }); }
+    else if (F.land === 'fireworks') {
+      for (let k = 0; k < 4; k++) setTimeout(() => { const fx2 = W * (0.2 + Math.random() * 0.6), fy = Hh * (0.12 + Math.random() * 0.25); burstC(fx2, fy, 46, [F.cols[k % F.cols.length], '#fff'], 260, 1.1, true); ring(fx2, fy, F.cols[k % F.cols.length], 70, 0.5, 3); SFX.crack && k % 2 === 0 && SFX.coin(); }, 120 + k * 260);
+    }
+  }
+  function drawFxOverlay() {
+    for (const R of G.rings) {
+      const u = R.t / R.life; ctx.globalAlpha = Math.max(0, 1 - u); ctx.strokeStyle = R.c; ctx.lineWidth = R.w * (1 - u) + 1;
+      ctx.beginPath(); ctx.arc(R.x, R.y, 6 + R.r1 * (1 - Math.pow(1 - u, 2)), 0, 7); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    if (G.rainbow > 0) {
+      const a = Math.min(1, G.rainbow / 0.6) * 0.55, cx = W / 2, cy = Hh * 0.95, R0 = Math.min(W, Hh) * 0.75;
+      ['#ff4d4d', '#ffa53d', '#ffe14d', '#4cd97b', '#4dc3ff', '#9b6bff'].forEach((c, k) => { ctx.globalAlpha = a; ctx.strokeStyle = c; ctx.lineWidth = 9; ctx.beginPath(); ctx.arc(cx, cy, R0 - k * 9, Math.PI, 0); ctx.stroke(); });
+      ctx.globalAlpha = 1;
+    }
+    if (G.aurora > 0) {
+      const a = Math.min(1, G.aurora / 0.6) * 0.4, tm = performance.now() / 1000;
+      const g2 = ctx.createLinearGradient(0, 0, W, 0); g2.addColorStop(0, 'rgba(77,255,240,0)'); g2.addColorStop(0.3, '#4dfff0'); g2.addColorStop(0.7, '#c08cff'); g2.addColorStop(1, 'rgba(192,140,255,0)');
+      ctx.globalAlpha = a; ctx.fillStyle = g2;
+      ctx.beginPath(); ctx.moveTo(0, 0);
+      for (let x = 0; x <= W; x += 12) ctx.lineTo(x, Hh * 0.22 + Math.sin(x * 0.03 + tm * 3) * 14);
+      ctx.lineTo(W, 0); ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1;
+    }
+    if (G.crown > 0) {
+      const u = 1 - G.crown / 1.8, s = u < 0.15 ? u / 0.15 : 1;
+      ctx.save(); ctx.globalAlpha = Math.min(1, G.crown / 0.4); ctx.translate(W / 2, Hh * 0.13 + 24); ctx.scale(s, s);
+      ctx.font = '56px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('👑', 0, 0); ctx.restore();
+    }
+  }
+
   // 옆 시점 좌표
   function scale() { return W / (G.camMax - G.camMin); }
   function yScale() { return Math.min(scale(), 26); }
@@ -393,8 +492,10 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     if (G.cut > 0) G.cut -= rdt * 3;
     if (G.shake > 0) G.shake -= rdt;
     if (G.impact) G.impact.t += rdt;
-    for (const p of G.fx) { p.t += rdt; p.x += p.vx * rdt; p.y += p.vy * rdt; if (!p.conf) p.vy += 300 * rdt; else p.rot += rdt * 6; }
+    for (const p of G.fx) { p.t += rdt; p.x += p.vx * rdt; p.y += p.vy * rdt; if (p.conf) p.rot += rdt * 6; else if (!p.ng) p.vy += 300 * rdt; else p.vy += 60 * rdt; }
     G.fx = G.fx.filter((p) => p.t < p.life);
+    for (const R of G.rings) R.t += rdt; G.rings = G.rings.filter((R) => R.t < R.life);
+    if (G.rainbow > 0) G.rainbow -= rdt; if (G.aurora > 0) G.aurora -= rdt; if (G.crown > 0) G.crown -= rdt;
     for (const t of G.texts) t.t += rdt;
     G.texts = G.texts.filter((t) => t.t < t.life);
     if (G.freeze > 0) { G.freeze -= rdt; return; }
@@ -486,6 +587,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       else { ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill(); }
     }
     ctx.globalAlpha = 1;
+    drawFxOverlay();
     // 텍스트
     let ny = 0;
     for (const t of G.texts) {
@@ -639,8 +741,8 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     if (G.phase === 'launch' && G.launch) {
       for (let i = 0; i < G.trail1.length; i++) {
         const [tx, ty, ts] = G.trail1[i], a = i / G.trail1.length;
-        ctx.fillStyle = G.result && G.result.special ? `rgba(255,210,60,${a * 0.6})` : `rgba(255,255,255,${a * 0.5})`;
-        ctx.beginPath(); ctx.arc(tx, ty, Math.max(1.5, 0.037 * ts * 2.6) * (0.4 + a * 0.6), 0, 7); ctx.fill();
+        if (G.bfx) { ctx.globalAlpha = a * 0.85; ctx.fillStyle = G.bfx.cols[i % G.bfx.cols.length]; } else ctx.fillStyle = G.result && G.result.special ? `rgba(255,210,60,${a * 0.6})` : `rgba(255,255,255,${a * 0.5})`;
+        ctx.beginPath(); ctx.arc(tx, ty, Math.max(1.5, 0.037 * ts * 2.6) * (0.4 + a * 0.6) * (G.bfx ? 1.6 : 1), 0, 7); ctx.fill(); ctx.globalAlpha = 1;
       }
       const last = G.trail1[G.trail1.length - 1];
       if (last) { ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(last[0], last[1], Math.max(1.5, 0.037 * last[2] * 2.6), 0, 7); ctx.fill(); }
@@ -1066,12 +1168,14 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     if (G.ballVis) {
       const bs = Math.max(3, Math.min(6, 0.12 * sc * 2));
       const fys = flightYS();
-      for (let i = 0; i < G.trail.length; i++) {
+      if (G.bfx && G.phase === 'flight') fxTrail(G.bfx, G.trail.map(([tx, ty]) => [sx(tx), gy - ty * fys]), bs);
+      else for (let i = 0; i < G.trail.length; i++) {
         const [tx, ty] = G.trail[i];
         ctx.fillStyle = G.result && G.result.special ? `rgba(255,210,60,${(i / G.trail.length) * 0.5})` : `rgba(255,255,255,${(i / G.trail.length) * 0.35})`;
         ctx.beginPath(); ctx.arc(sx(tx), gy - ty * fys, bs * (i / G.trail.length), 0, 7); ctx.fill();
       }
       const bx = sx(G.ballX), by = gy - G.ballY * fys;
+      if (G.bfx && G.phase === 'flight') fxTrailParticles(G.bfx, bx, by);
       if (G.result && G.result.special && G.phase === 'flight') {
         ctx.fillStyle = 'rgba(255,200,0,.5)'; ctx.beginPath(); ctx.arc(bx, by, bs * 3, 0, 7); ctx.fill();
       }
@@ -1977,5 +2081,5 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   });
   track('game_start', { returning: had ? 1 : 0 });
   requestAnimationFrame(frame);
-  window.__hrk = { get st() { return st; }, G, save, holdFrames };
+  window.__hrk = { get st() { return st; }, G, save, holdFrames, fxLand: (k, x, y) => fxLand(BATFX[k], x, y) };
 })();
