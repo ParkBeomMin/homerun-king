@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const H = window.HR;
-  const VERSION = 'v0.9.1 베타';
+  const VERSION = 'v0.10 베타';
   const SAVE_KEY = 'hrk_save_v1';
   const fmt = H.fmt;
   const $ = (id) => document.getElementById(id);
@@ -202,6 +202,9 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   for (let i = 0; i < 6; i++) G.clouds.push({ x: Math.random(), y: 0.08 + Math.random() * 0.25, s: 0.6 + Math.random() * 0.8 });
 
   function nowS() { return performance.now() / 1000; }
+  const APPX = window.HRKAPP || { app: false, promoOn: () => false, adOn: () => false, showReward: async () => false, banner: () => {}, setBack: () => {} };
+  function boostLeft() { return Math.max(0, ((st.boostUntil || 0) - Date.now()) / 1000); }
+  function feverOn() { return G.fever > nowS() || boostLeft() > 0; }
   function niceStep(x) { const p = Math.pow(10, Math.floor(Math.log10(Math.max(1, x)))), n = x / p; return (n < 1.5 ? 1 : n < 3.5 ? 2 : n < 7.5 ? 5 : 10) * p; }
   function vib(pattern) { if (st.vibe === false) return; try { if (navigator.vibrate) navigator.vibrate(pattern); } catch (e) { /* noop */ } }
 
@@ -252,7 +255,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       if (o.call === 'strikeout') B.outs++;
       if (B.hr >= H.BOSS_HR || B.outs >= H.BOSS_OUTS) {
         const win = B.hr >= H.BOSS_HR, i = B.i; G.mode = 'normal'; G.boss = null;
-        setTimeout(() => queueModal(() => bossEndModal(win, i)), 900);
+        const hr = B.hr, cont = !!B.cont; setTimeout(() => queueModal(() => bossEndModal(win, i, hr, cont)), 900);
       }
     }
   }
@@ -298,7 +301,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   }
 
   function contact(q, manual) {
-    const p = G.pitch, fever = G.fever > nowS();
+    const p = G.pitch, fever = feverOn();
     const r = H.hitResult(st, q, manual, fever, Math.random, H.hitBonus(st, p));
     G.result = r; G.hitP = p;
     const b = ball3(p, Math.min(G.t, p.t * 1.05));
@@ -330,7 +333,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   }
 
   function doCall(swung) {
-    const p = G.pitch, fever = G.fever > nowS();
+    const p = G.pitch, fever = feverOn();
     const res = H.callPitch(st, p, swung, fever);
     G.call = { p, ev: res.ev, swung };
     G.phase = 'call'; G.t = 0;
@@ -610,7 +613,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   // ---------- 1인칭 ----------
   function draw1P() {
     const S = H.STADIUMS[st.stadium];
-    const hy = hy1(), fever = G.fever > nowS();
+    const hy = hy1(), fever = feverOn();
     ctx.save();
     if (G.zoom > 0) { const z = 1 + G.zoom * 0.06; ctx.translate(W / 2, Hh * 0.55); ctx.scale(z, z); ctx.translate(-W / 2, -Hh * 0.55); }
     // 하늘
@@ -1075,7 +1078,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   function drawSide() {
     const S = H.STADIUMS[st.stadium];
     const sc = scale(), ys = yScale(), gy = groundY();
-    const fever = G.fever > nowS();
+    const fever = feverOn();
     const sk = ctx.createLinearGradient(0, 0, 0, gy);
     sk.addColorStop(0, fever ? '#ff7a2a' : S.sky[0]); sk.addColorStop(1, fever ? '#ffd27a' : S.sky[1]);
     ctx.fillStyle = sk; ctx.fillRect(-10, -10, W + 20, gy + 10);
@@ -1341,7 +1344,8 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     const now = performance.now();
     if (now - cpsAt > 3000) { lastCPS = H.expectedCPS(st, 150); cpsAt = now; }
     $('cps').textContent = '자동 초당 ' + fmt(lastCPS) + ' · 직접 치면 +20%';
-    $('feverTag').style.display = G.fever > nowS() ? 'inline-block' : 'none';
+    $('feverTag').style.display = feverOn() ? 'inline-block' : 'none';
+    const bb = $('boostBtn'); if (bb) { const on = APPX.adOn(), bl = boostLeft(), left = H.adLeft(st, 'boost'); bb.style.display = on && (bl > 0 || left > 0) ? '' : 'none'; bb.disabled = bl > 0; bb.textContent = bl > 0 ? 'x2 ' + Math.floor(bl / 60) + ':' + String(Math.floor(bl % 60)).padStart(2, '0') : '📺 5분 x2'; }
     $('wkTag').style.display = H.isWeekend() ? 'inline-block' : 'none';
     tutCheck();
     // 탭 알림 점
@@ -1434,7 +1438,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     h += `</div><div class="small" style="margin:8px 0 4px;color:#ff8ab5">한정 방망이 (합성·판매 불가, 특성 2개)</div><div class="dex">`;
     for (const k of H.LIMITED_KEYS) { const L = H.LIMITED[k], got = (st.dex || {})['sp_' + k]; h += `<div class="dx ${got ? 'got' : ''}" title="${L.name}">${batSVG({ g: L.g, t: L.t, t2: L.t2, sp: k, e: 0 })}</div>`; }
     h += `</div><div class="small" style="margin-top:4px">${H.LIMITED_KEYS.map((k) => ((st.dex || {})['sp_' + k] ? '✅ ' : '🔒 ') + H.LIMITED[k].name + ': ' + H.LIMITED[k].how).join('<br>')}</div>`;
-    h += `<div class="small" style="margin-top:6px">한 등급의 3종을 모두 모으면 비거리 +5% (최대 +30%). 전설까지 15종이면 코인 +20%, 신화까지 18종이면 +30%, 한정 3종을 다 모으면 +10% 더</div></div>`;
+    h += `<div class="small" style="margin-top:6px">한 등급의 3종을 모두 모으면 비거리 +5% (최대 +30%). 전설까지 15종이면 코인 +20%, 신화까지 18종이면 +30%, 한정 4종을 다 모으면 +10% 더</div></div>`;
     h += `<div class="h">보유 방망이 <span class="r small">${st.bats.length}/${H.INV_MAX}</span></div><div class="inv">`;
     for (const x of list) {
       const on = x.id === st.equip, G2 = H.GRADES[x.g];
@@ -1460,9 +1464,40 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       <button class="btn blue" data-buy="premium" ${full || st.gems < H.PREMIUM_GEMS ? 'disabled' : ''}>열기<span class="cost">◆ ${H.PREMIUM_GEMS}</span></button></div>
     <div class="card shopi"><div class="pic">${uiIcon('shop_shield', '🛡')}</div><div style="flex:1"><div>강화 보호권</div><div class="small">+10 이상 강화에서 파괴될 때 대신 1단계 하락으로 막아줘요</div></div>
       <button class="btn blue" data-buy="ticket" ${st.gems < H.TICKET_GEMS ? 'disabled' : ''}>구매<span class="cost">◆ ${H.TICKET_GEMS}</span></button></div>
+    ${APPX.adOn() ? adShopHTML(full) : ''}
     <div class="card small">◆ 젬은 구장 클리어, 홈런 25개마다, 특대 홈런으로 얻어요. 실제 결제는 없어요.<br>상자 가격은 도달한 구장에 따라 올라가요.</div>`;
   }
 
+  // 앱 전용: 광고 보고 받는 보상 (하루 횟수 제한)
+  function adShopHTML(full) {
+    const row = (k, ic, name, desc, dis) => { const n = H.adLeft(st, k); return `<div class="card shopi"><div class="pic">${ic}</div><div style="flex:1"><div>${name}</div><div class="small">${desc} · 오늘 ${n}/${H.AD_LIMIT[k]}</div></div>
+      <button class="btn green" data-ad="${k}" ${n <= 0 || dis ? 'disabled' : ''}>📺 받기</button></div>`; };
+    return `<div class="h">📺 광고 보고 받기</div>` + row('box', uiIcon('shop_chest', '🎁'), '고급 상자 무료', '광고를 보고 고급 상자를 열어요', full) + row('gems', '◆', '젬 +20', '광고를 보고 젬을 받아요') + row('ticket', uiIcon('shop_shield', '🛡'), '강화 보호권 +1', '광고를 보고 보호권을 받아요');
+  }
+  function adClaim(k) {
+    if (H.adLeft(st, k) <= 0) { toast('오늘은 다 받았어요. 내일 다시 와요'); return; }
+    APPX.showReward('shop_' + k, () => {
+      H.adUse(st, k);
+      if (k === 'gems') { st.gems += 20; SFX.coin(); toast('◆ 젬 +20 받았어요'); }
+      else if (k === 'ticket') { st.tickets++; SFX.up(); toast('강화 보호권 +1 받았어요'); }
+      else if (k === 'box') { const b = H.newBat(H.rollGrade(H.BOX.premium.odds, Math.random), null, Math.random); st.bats.push(b); H.markDex(st, b); if (b.g >= 4) st.gotLegend = true; st.boxOpens = (st.boxOpens || 0) + 1; SFX.box(); revealModal(b, '고급 상자 오픈!'); }
+      else if (k === 'boost') { st.boostUntil = Math.max(Date.now(), st.boostUntil || 0) + 300000; SFX.up(); toast('5분 동안 코인 2배!'); }
+      save(); updateHUD(); renderPanel();
+    }, toast);
+  }
+  function appPromoHTML() {
+    if (!APPX.promoOn()) return '';
+    return `<div class="card apppromo"><div style="font-size:16px">📱 안드로이드 앱이 나왔어요</div><div class="small" style="margin:4px 0 8px">앱에서 시작하면 한정 방망이 <b style="color:#4dfff0">앱 스타 배트</b>를 선물로 드려요. 지금 기록은 아래 기기 이전 코드로 그대로 옮길 수 있어요.</div><a class="btn green" href="${APPX.storeUrl}" target="_blank" rel="noopener" data-promo="stadium" style="text-decoration:none;display:block;text-align:center">앱 받기</a></div>`;
+  }
+  function appPromoModal() {
+    st.promoDay = H.todayKey(); save();
+    openModal(`<h2>📱 홈런왕 키우기 앱 출시!</h2><div class="bimg">${batSVG({ g: 3, t: 'power', t2: 'contact', sp: 'app', e: 0 }, true)}</div>
+      <p>앱에서 시작하면 한정 방망이<br><b style="color:#4dfff0">앱 스타 배트</b>를 선물로 드려요</p>
+      <p class="small">지금 기록은 구장 탭 > 기기 이전 코드로 앱에 그대로 옮길 수 있어요</p>
+      <div class="mbtns"><button class="btn gray" data-close>다음에</button><a class="btn green" id="promoGo" href="${APPX.storeUrl}" target="_blank" rel="noopener" style="text-decoration:none;display:flex;align-items:center;justify-content:center">앱 받기</a></div>`);
+    $('promoGo').onclick = () => { track('app_promo_click', { from: 'modal' }); closeModal(); };
+    track('app_promo_show', {});
+  }
   function renderStadium() {
     const can = H.canRetire(st), g = H.honorGain(st);
     let h = `<div class="h">은퇴 <span class="r small">은퇴 ${st.retires || 0}회</span></div><div class="card">
@@ -1487,7 +1522,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       최고 비거리 <b style="color:#ffd84a">${H.fmtDist(st.best)}</b> · 최고 연속 홈런 ${st.bestStreak}<br>
       특대 홈런 ${st.specials} · 강화 시도 ${st.enhTries} · 파괴된 방망이 ${st.destroyed}
       <button class="btn big" id="shareBtn" style="margin-top:8px">📸 내 기록 카드 공유하기</button></div>
-      <div class="h">기기 이전</div><div class="card"><div class="small" style="margin-bottom:6px">다른 폰이나 브라우저로 옮길 때 8자리 코드를 만들어 새 기기에 입력하세요. 코드는 24시간 동안 1번 쓸 수 있어요.</div>
+      ${appPromoHTML()}<div class="h">기기 이전</div><div class="card"><div class="small" style="margin-bottom:6px">다른 폰이나 브라우저로 옮길 때 8자리 코드를 만들어 새 기기에 입력하세요. 코드는 24시간 동안 1번 쓸 수 있어요.</div>
       <div style="display:flex;gap:8px"><button class="btn sm blue" id="expBtn" style="flex:1">이전 코드 만들기</button><button class="btn sm gray" id="impBtn" style="flex:1">코드로 불러오기</button></div></div>
       <div class="h">설정</div><div class="card" style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn sm ${st.bgm !== false ? 'green' : 'gray'}" id="bgmBtn">배경음 ${st.bgm !== false ? 'ON' : 'OFF'}</button>
@@ -1564,6 +1599,8 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       const r = H.sell(st, d.sell); if (r.ok) { SFX.coin(); toast('₩ ' + fmt(r.price) + ' 획득'); }
       updateHUD(); return renderPanel();
     }
+    if (d.ad) return adClaim(d.ad);
+    if (d.promo) { track('app_promo_click', { from: d.promo }); return; }
     if (d.buy) {
       const r = H.buy(st, d.buy);
       if (!r.ok) { toast(r.reason === 'full' ? '방망이 가방이 가득 찼어요. 판매나 합성을 해주세요' : '재화가 부족해요'); return; }
@@ -1620,6 +1657,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     panel.scrollTop = 0; renderPanel();
   });
   $('swapBtn').addEventListener('click', () => { audio(); toggleLayout('button'); });
+  $('boostBtn').addEventListener('click', () => { audio(); adClaim('boost'); });
   $('autoBtn').addEventListener('click', () => {
     st.auto = !st.auto; audio(); SFX.click(); syncAuto();
   });
@@ -1891,7 +1929,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     if (rew && rew.bat) { track('limited', { sp: 'derby' }); queueModal(() => revealModal(rew.bat, '🏆 한정 방망이 획득!')); }
     updateHUD(); markDirty();
   }
-  function bossEndModal(win, i) {
+  function bossEndModal(win, i, hr, cont) {
     const B = H.BOSSES[i];
     if (win) {
       const r = H.winBoss(st, i); SFX.success(); confetti(); vib([40, 40, 40, 40, 120]);
@@ -1900,8 +1938,10 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       if (r.bat) { track('limited', { sp: 'boss' }); queueModal(() => revealModal(r.bat, '🏆 한정 방망이 획득!')); }
     } else {
       SFX.fail(); track('boss_lose', { i });
-      openModal(`<h2>패배...</h2><p>${B.name}에게 막혔어요. 능력치와 방망이를 키우고 다시 도전해요!</p><div class="mbtns"><button class="btn gray" data-close>닫기</button><button class="btn red" id="retryBoss">다시 도전</button></div>`);
+      const canCont = APPX.adOn() && !cont && hr < H.BOSS_HR;
+      openModal(`<h2>패배...</h2><p>${B.name}에게 막혔어요. 능력치와 방망이를 키우고 다시 도전해요!</p>${canCont ? `<button class="btn big green" id="contBoss" style="width:100%;margin-top:6px">📺 광고 보고 아웃 1개 더 (홈런 ${hr}개 이어서)</button>` : ''}<div class="mbtns"><button class="btn gray" data-close>닫기</button><button class="btn red" id="retryBoss">다시 도전</button></div>`);
       $('retryBoss').onclick = () => startBoss(i);
+      const cb = $('contBoss'); if (cb) cb.onclick = () => APPX.showReward('boss_continue', () => { startBoss(i); G.boss.hr = hr; G.boss.outs = H.BOSS_OUTS - 1; G.boss.cont = true; toast('아웃 1개 남았어요! 홈런 ' + (H.BOSS_HR - hr) + '개 더!'); track('boss_continue', { i }); }, toast);
     }
     updateHUD(); markDirty();
   }
@@ -1983,8 +2023,9 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     const h = Math.floor(o.sec / 3600), m = Math.floor((o.sec % 3600) / 60);
     openModal(`<h2>다시 오셨네요!</h2><p>자리 비운 ${h ? h + '시간 ' : ''}${m}분 동안 타자가 혼자 연습했어요.</p>
       <div class="res" style="color:#ffd84a">₩ ${fmt(o.coins)}</div><p class="small">최대 8시간, 자동 타격의 50%만큼 쌓여요</p>
-      <div class="mbtns"><button class="btn big" id="takeOff">받기</button></div>`);
+      <div class="mbtns">${APPX.adOn() ? `<button class="btn green" id="takeOff2">📺 광고 보고 2배</button>` : ''}<button class="btn big" id="takeOff">받기</button></div>`);
     $('takeOff').onclick = () => { st.coins += o.coins; SFX.coin(); closeModal(); updateHUD(); renderPanel(); };
+    const t2 = $('takeOff2'); if (t2) t2.onclick = () => APPX.showReward('offline_x2', () => { st.coins += o.coins * 2; SFX.coin(); closeModal(); toast('₩ ' + fmt(o.coins * 2) + ' 받았어요 (2배)'); updateHUD(); renderPanel(); save(); }, toast);
   }
 
   // ---------- 배경음악 (WebAudio 직접 합성, 자작 멜로디) ----------
@@ -2032,7 +2073,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   })();
 
   // ---------- PWA (홈 화면에 추가) ----------
-  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  if (!APPX.app && 'serviceWorker' in navigator && location.protocol === 'https:') {
     window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
   }
 
@@ -2062,13 +2103,18 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
 
   // ---------- 시작 ----------
   const had = load();
+  APPX.banner();
   applyLayout(); resize(); syncAuto(); syncHaptic(); startPitch();
+  const appGift = APPX.app ? H.grantLimited(st, 'app') : null; if (appGift) save();
+  APPX.setBack(() => { if (!modal.classList.contains('hidden')) { closeModal(); return true; } if (title.style.display !== 'none') return false; return false; });
+  if (APPX.app) try { gtag('set', 'user_properties', { app_platform: 'android' }); } catch (e) { /* noop */ }
   if (!st.tutorial) $('tapHint').style.display = 'none';
   updateHUD(); renderPanel();
   const pendingOff = had ? H.offlineReward(st, Date.now()) : null;
   // 타이틀 화면: 탭하면 시작 (사운드도 이때 켜짐)
   const title = $('title');
   $('tVer').textContent = VERSION;
+  if (APPX.promoOn()) { const tp = document.createElement('div'); tp.className = 'tpromo'; tp.textContent = '📱 안드로이드 앱 출시! 앱에서 시작하면 한정 방망이 선물'; title.appendChild(tp); }
   title.addEventListener('pointerdown', () => {
     if (title.classList.contains('out')) return;
     audio(); SFX.click(); title.classList.add('out');
@@ -2077,6 +2123,8 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     if (H.attCan(st)) queueModal(attModal);
     BGM.start(); VOICE.load(); startIntro();
     if (!st.layoutAsked && (st.tut == null || st.tut >= TUT.length)) queueModal(layoutAsk);
+    if (appGift) { track('app_gift', {}); queueModal(() => revealModal(appGift, '📱 앱 설치 선물!')); }
+    if (APPX.promoOn() && st.promoDay !== H.todayKey() && (st.totalHits || 0) >= 30) queueModal(appPromoModal);
     track('title_start', {});
   });
   track('game_start', { returning: had ? 1 : 0 });

@@ -158,6 +158,18 @@ html,body{margin:0;height:100%;background:#071629;color:var(--txt);font-family:'
 #app.swap #fieldWrap{order:4;margin-bottom:env(safe-area-inset-bottom)}
 #app.swap{background:#071629}
 #swapBtn{padding:6px 10px;font-size:16px;line-height:1;background:#2b5a8f}
+#adbar{order:9;flex:0 0 auto;display:flex;justify-content:center;align-items:center;min-height:50px;background:#050f1e;padding-bottom:env(safe-area-inset-bottom)}
+#adbar .ad-ph{width:320px;height:50px;display:flex;align-items:center;justify-content:center;border:1px dashed #3d5f8f;color:#6f8bb3;font-size:12px}
+body.ad-on #tabs{padding-bottom:0}
+body.ad-on #app.swap #fieldWrap{margin-bottom:0}
+#boostBtn{padding:6px 8px;font-size:12px;background:#2a8a4a}
+#boostBtn:disabled{opacity:1;background:#ff8a1f;color:#3a1600}
+.tpromo{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(max(10px,env(safe-area-inset-bottom)) + 22px);width:max-content;max-width:92%;font-size:13px;color:#4dfff0;background:rgba(0,0,0,.45);border-radius:12px;padding:5px 12px}
+.apppromo{border:2px solid #4dfff0}
+html.in-app #hud{padding-top:max(8px,env(safe-area-inset-top),var(--safe-area-inset-top,0px))}
+html.in-app #tabs{padding-bottom:max(env(safe-area-inset-bottom),var(--safe-area-inset-bottom,0px))}
+html.in-app #app.swap #tabs{padding-bottom:0}
+html.in-app #app.swap #fieldWrap{margin-bottom:max(env(safe-area-inset-bottom),var(--safe-area-inset-bottom,0px))}
 .ver{font-size:11px;color:#6d8bb0;text-align:center;margin:10px 0 4px}
 </style>
 <script>
@@ -193,6 +205,7 @@ window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(argu
   <div id="ctrl">
     <button id="autoBtn" class="tog on">자동 타격 ON</button>
     <button id="swapBtn" class="tog" title="타석 화면 위/아래 바꾸기">⇅</button>
+    <button id="boostBtn" class="tog" style="display:none">📺 5분 x2</button>
     <span id="cps">초당 0</span>
   </div>
   <section id="panel"></section>
@@ -206,8 +219,9 @@ window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(argu
 </div>
 <div id="title"><div class="tlogo"><img id="tEmblem" src="assets/ui/emblem.webp" alt="" onerror="this.style.display='none'"><h1>홈런왕<br><span>키우기</span></h1></div><div class="ttap">화면을 탭해서 시작</div><div class="tver" id="tVer"></div></div>
 <div id="modal" class="hidden"></div>
-<script src="i18n.js?v=0.9.1"></script>
-<script src="core.js?v=0.9.1"></script>
-<script src="game.js?v=0.9.1"></script>
+<script src="i18n.js?v=0.10"></script>
+<script src="app.js?v=0.10"></script>
+<script src="core.js?v=0.10"></script>
+<script src="game.js?v=0.10"></script>
 </body>
 </html>

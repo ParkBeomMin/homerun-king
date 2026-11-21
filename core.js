@@ -30,8 +30,9 @@
     boss: { name: '보스 사냥꾼 배트', g: 4, t: 'power', t2: 'contact', how: '10구장 보스 첫 격파' },
     derby: { name: '더비 챔피언 배트', g: 3, t: 'power', t2: 'luck', how: '홈런 더비 7개 이상 (랭킹 도전)' },
     season: { name: '개막 시즌 배트', g: 2, t: 'contact', t2: 'luck', how: '개막 이벤트 기간 출석 3회 (12/4까지)' },
+    app: { name: '앱 스타 배트', g: 3, t: 'power', t2: 'contact', how: '안드로이드 앱에서 처음 시작하면 선물' },
   };
-  const LIMITED_KEYS = ['boss', 'derby', 'season'];
+  const LIMITED_KEYS = ['boss', 'derby', 'season', 'app'];
   const SEASON_END = Date.UTC(2026, 11, 4, 15, 0, 0); // 2026-12-05 00:00 KST 전까지
   function hasT(b, t) { return !!b && (b.t === t || b.t2 === t); }
   function batKey(b) { return b.sp ? 'sp_' + b.sp : 'g' + b.g + '_' + b.t; }
@@ -464,8 +465,12 @@
   function dexCount(st) { return Object.keys(st.dex || {}).length; }
   function dexNormal(st) { return Object.keys(st.dex || {}).filter((k) => !k.startsWith('sp_')).length; }
   function dexMult(st) { return 1 + 0.05 * dexRows(st); }
-  // 일반 15종(전설까지) 다 모으면 코인 +20%, 신화 3종까지 18종이면 +30%, 한정 3종을 다 모으면 +10% 더
+  // 일반 15종(전설까지) 다 모으면 코인 +20%, 신화 3종까지 18종이면 +30%, 한정 4종을 다 모으면 +10% 더
   function dexCoin(st) { const n = dexNormal(st), d = st.dex || {}; return 1 + (n >= 18 ? 0.3 : n >= 15 ? 0.2 : 0) + (LIMITED_KEYS.every((k) => d['sp_' + k]) ? 0.1 : 0); }
+  // 앱 보상형 광고: 하루 횟수 (한국 날짜 기준이 아니라 기기 날짜 기준, todayKey와 같음)
+  const AD_LIMIT = { box: 2, gems: 5, ticket: 3, boost: 3 };
+  function adLeft(st, k) { const d = todayKey(); if (!st.ad || st.ad.d !== d) st.ad = { d, c: {} }; return Math.max(0, AD_LIMIT[k] - (st.ad.c[k] || 0)); }
+  function adUse(st, k) { adLeft(st, k); st.ad.c[k] = (st.ad.c[k] || 0) + 1; }
   function seasonOn(now) { return (now || Date.now()) < SEASON_END; }
 
   // ---------- 주말 이벤트 (한국 시간 토·일 코인 2배) ----------
@@ -626,11 +631,11 @@
   G.HR = {
     GRADES, TRAITS, BAT_NAMES, ENH_RATE, ENH_MAX, DESTROY_CHANCE, STADIUMS, HR_TO_CLEAR, STATS, BOX, INV_MAX,
     PREMIUM_GEMS, TICKET_GEMS, OFFLINE_MAX, OFFLINE_RATE, QMULT,
-    powerMult, speedMult, fameMult, statCost, batPower, batName, enhCost, enhRate, failText, newBat, newState,
+    powerMult, speedMult, fameMult, statCost, batPower, batName, enhCost, enhRate, failText, newBat, rollGrade, newState,
     equipped, fenceOf, coinMultOf, resistOf, honorMult, canRetire, honorGain, retire, fmtDist, OUT_START, RETIRE_AT, HONOR_PCT, perfectWindow, goodWindow, weakWindow, autoPerfect, rollAutoQuality, specialChance,
     hitResult, cycleTime, takeTime, expectedCPS, simAuto, genPitch, swingOutcome, autoDecide, hitBonus, callPitch, resetCount, eyeOf, eyeRate, ballChance, edgeDist, PITCH_T, homerunRate, tryEnhance, removeBat, bestBat, woodPrice, normalBoxPrice, buy,
     mergeCandidates, merge, sell, applyHit, moveStadium, offlineReward, fmt,
-    PITCH_TYPES, pitchTypesFor, LIMITED, LIMITED_KEYS, DEX_TOTAL, DERBY_BAT_HR, hasT, batKey, traitName, traitShort, traitDesc, hasLimited, grantLimited, seasonOn, dexNormal, markDex, dexRows, dexCount, dexMult, dexCoin, isWeekend, BOSSES, BOSS_HR, BOSS_OUTS, PITCHERS, pitcherOf, avgKmh, bossOpen, bossReward, winBoss, DERBY_N, weekKey, derbyCanRank, derbyScore, derbyReward,
+    PITCH_TYPES, pitchTypesFor, AD_LIMIT, adLeft, adUse, LIMITED, LIMITED_KEYS, DEX_TOTAL, DERBY_BAT_HR, hasT, batKey, traitName, traitShort, traitDesc, hasLimited, grantLimited, seasonOn, dexNormal, markDex, dexRows, dexCount, dexMult, dexCoin, isWeekend, BOSSES, BOSS_HR, BOSS_OUTS, PITCHERS, pitcherOf, avgKmh, bossOpen, bossReward, winBoss, DERBY_N, weekKey, derbyCanRank, derbyScore, derbyReward,
     todayKey, ATT, DAILY, DAILY_ALL, ACH, daily, bump, rewardText, grant, attCan, attDay, claimAtt, dailyDone, claimDaily, claimDailyAll, achReady, claimAch, claimableCount,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
