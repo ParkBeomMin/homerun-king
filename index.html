@@ -186,9 +186,9 @@ html[lang=ja] #title h1 span{font-size:52px}
 .ver{font-size:11px;color:#6d8bb0;text-align:center;margin:10px 0 4px}
 </style>
 <script>
-(function(){var on=location.hostname==='parkbeommin.github.io'&&!/[?&](noga|rec)=1/.test(location.search);window.HRK_GA=on;if(!on)return;
+(function(){var app=window.HRK_APP===true;var on=(app||location.hostname==='parkbeommin.github.io')&&!/[?&](noga|rec)=1/.test(location.search);window.HRK_GA=on;if(!on)return;var plat=app?'android':'web';
 var s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id=G-MD8F2RFFG0';document.head.appendChild(s);
-window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config','G-MD8F2RFFG0');})();
+window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('set','user_properties',{app_platform:plat});gtag('set',{app_platform:plat});gtag('config','G-MD8F2RFFG0',{app_platform:plat,app_build:window.HRK_BUILD||'web'});})();
 </script>
 </head>
 <body>
@@ -232,9 +232,9 @@ window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(argu
 </div>
 <div id="title"><div class="tlogo"><img id="tEmblem" src="assets/ui/emblem.webp" alt="" onerror="this.style.display='none'"><h1>홈런왕<br><span>키우기</span></h1></div><div class="ttap">화면을 탭해서 시작</div><div class="tver" id="tVer"></div></div>
 <div id="modal" class="hidden"></div>
-<script src="i18n.js?v=0.12"></script>
-<script src="app.js?v=0.12"></script>
-<script src="core.js?v=0.12"></script>
-<script src="game.js?v=0.12"></script>
+<script src="i18n.js?v=0.12.1"></script>
+<script src="app.js?v=0.12.1"></script>
+<script src="core.js?v=0.12.1"></script>
+<script src="game.js?v=0.12.1"></script>
 </body>
 </html>

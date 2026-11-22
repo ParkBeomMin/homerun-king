@@ -2,14 +2,14 @@
 (function () {
   'use strict';
   const H = window.HR;
-  const VERSION = 'v0.12 베타';
+  const VERSION = 'v0.12.1 베타';
   const SAVE_KEY = 'hrk_save_v1';
   const fmt = H.fmt;
   const $ = (id) => document.getElementById(id);
 
   // ---------- 분석 (GA 연결 시 사용) ----------
   function track(name, params) {
-    try { if (window.gtag && window.HRK_GA) window.gtag('event', name, params || {}); } catch (e) { /* noop */ }
+    try { if (window.gtag && window.HRK_GA) window.gtag('event', name, Object.assign({ app_platform: window.HRK_APP === true ? 'android' : 'web' }, params || {})); } catch (e) { /* noop */ }
   }
 
   // ---------- 저장 ----------
@@ -2134,7 +2134,6 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   const appGift = APPX.app ? H.grantLimited(st, 'app') : null; if (appGift) save();
   const betaGift = APPX.beta ? H.grantLimited(st, 'beta') : null; if (APPX.beta) { H.betaTick(st); save(); }
   APPX.setBack(() => { if (!modal.classList.contains('hidden')) { closeModal(); return true; } if (title.style.display !== 'none') return false; return false; });
-  if (APPX.app) try { gtag('set', 'user_properties', { app_platform: 'android' }); } catch (e) { /* noop */ }
   if (!st.tutorial) $('tapHint').style.display = 'none';
   updateHUD(); renderPanel();
   const pendingOff = had ? H.offlineReward(st, Date.now()) : null;
