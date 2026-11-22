@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const H = window.HR;
-  const VERSION = 'v0.14.1 베타';
+  const VERSION = 'v0.15 베타';
   const SAVE_KEY = 'hrk_save_v1';
   const fmt = H.fmt;
   const $ = (id) => document.getElementById(id);
@@ -1498,17 +1498,20 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
 
   function renderBats() {
     const b = H.equipped(st), g = H.GRADES[b.g];
-    const rate = H.enhRate(b), cost = H.enhCost(b, st), max = b.e >= H.ENH_MAX;
+    const rate = H.enhRateNow(st, b), cost = H.enhCost(b, st), max = b.e >= H.ENH_MAX, need = H.pityNeed(b), pv = Math.min(b.p || 0, need), full = H.pityFull(b), boost = H.enhBoostOn(st);
     let h = `<div class="card"><div class="eq"><div class="bimg">${batSVG(b, b.e >= 10)}</div><div style="min-width:0">
       <div style="font-size:17px">${H.batName(b)} <span style="color:${g.color}">+${b.e}</span></div>
       <div>${gradeTag(b.g)}${b.sp ? ' <span class="grade" style="background:#e0457b">한정</span>' : ''} <span class="small">${H.traitName(b)}</span></div>
       <div class="small">파워 x${fmt(H.batPower(b), 2)} · ${H.traitDesc(b)}</div></div></div>
       <div style="border-top:1px solid var(--line);margin:8px 0 4px"></div>
       ${max ? '<div class="enhRow">최대 강화 단계예요</div>' : `
-      <div class="enhRow"><span>+${b.e} → <b style="color:${g.color}">+${b.e + 1}</b></span><span>성공률 <b style="color:${rate >= 70 ? '#4cd97b' : rate >= 40 ? '#ffd84a' : '#ff7a7a'}">${rate}%</b></span></div>
+      <div class="enhRow"><span>+${b.e} → <b style="color:${g.color}">+${b.e + 1}</b></span><span>성공률 <b style="color:${rate >= 70 ? '#4cd97b' : rate >= 40 ? '#ffd84a' : '#ff7a7a'}">${rate}%</b>${boost && !full ? ' <span class="small" style="color:#7fffd4">(+' + H.ENH_BOOST + ')</span>' : ''}</span></div>
       <div class="enhRow small"><span>파워 x${fmt(H.batPower(b), 2)} → x${fmt(H.batPower({ g: b.g, t: b.t, t2: b.t2, e: b.e + 1 }), 2)}</span><span>${H.failText(b.e)}</span></div>
       ${b.e >= 10 ? `<label class="chk"><input type="checkbox" id="useTicket" ${st.useTicket !== false ? 'checked' : ''}> 보호권 사용 (보유 ${st.tickets}개, 파괴될 때만 소모)</label>` : ''}
-      <button class="btn big" id="enhBtn" ${st.coins < cost ? 'disabled' : ''}>강화하기 · ₩ ${fmt(cost)}</button>`}
+      <div class="pity"><div class="small" style="display:flex;justify-content:space-between"><span>🔥 강화 기운 ${pv}/${need}</span><span style="color:${full ? '#ffd84a' : '#9fb4d6'}">${full ? '가득! 다음 강화는 무조건 성공' : '실패할 때마다 차요 · 가득 차면 확정 성공'}</span></div><div class="bar" style="height:8px;margin-top:3px"><i style="width:${need ? pv / need * 100 : 0}%;background:${full ? 'linear-gradient(90deg,#ff8a1f,#ffd84a)' : 'linear-gradient(90deg,#ff5a2a,#ff9a3a)'}"></i></div></div>
+      ${boost ? `<div class="small" style="color:#7fffd4;margin-top:4px">⚡ 강화 확률 +${H.ENH_BOOST}%p 적용 중 · ${Math.ceil(((st.enhBoostUntil || 0) - Date.now()) / 60000)}분 남음</div>` : ''}
+      <button class="btn big" id="enhBtn" ${st.coins < cost ? 'disabled' : ''}>강화하기 · ₩ ${fmt(cost)}</button>
+      ${APPX.adOn() ? `<div style="display:flex;gap:6px;margin-top:6px"><button class="btn sm green" data-enad="efree" style="flex:1" ${H.adLeft(st, 'efree') <= 0 ? 'disabled' : ''}>📺 무료 강화 ${H.adLeft(st, 'efree')}/${H.AD_LIMIT.efree}</button><button class="btn sm green" data-enad="eboost" style="flex:1" ${H.adLeft(st, 'eboost') <= 0 || boost ? 'disabled' : ''}>📺 10분 확률 +${H.ENH_BOOST}%p ${H.adLeft(st, 'eboost')}/${H.AD_LIMIT.eboost}</button></div>` : ''}`}
     </div>`;
     // 합성
     let mh = '';
@@ -1680,6 +1683,8 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     }
     if (t.id === 'useTicket') { st.useTicket = t.checked; return; }
     if (t.id === 'enhBtn') { pressFx(t, null, ['#ffe14d', '#ff9f55', '#ffffff']); vib(15); return doEnhance(); }
+    if (d.enad === 'efree') { if (H.adLeft(st, 'efree') <= 0) return; return APPX.showReward('enh_free', () => { H.adUse(st, 'efree'); track('enh_free', {}); doEnhance(true); }, toast); }
+    if (d.enad === 'eboost') { if (H.adLeft(st, 'eboost') <= 0) return; return APPX.showReward('enh_boost', () => { H.adUse(st, 'eboost'); st.enhBoostUntil = Date.now() + 600000; save(); SFX.up(); toast('10분 동안 강화 확률 +' + H.ENH_BOOST + '%p!'); track('enh_boost', {}); renderPanel(); }, toast); }
     if (t.id === 'infoBtn') { SFX.click(); return infoModal(); }
     if (d.merge) {
       const r = H.merge(st, +d.merge);
@@ -1807,24 +1812,36 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     }, b.g >= 3 ? 1100 : 600);
   }
 
-  function doEnhance() {
+  function doEnhance(free) {
     const b = H.equipped(st);
-    const before = b.e, name = H.batName(b);
+    const before = b.e, name = H.batName(b), snap = Object.assign({}, b), tix0 = st.tickets, equip0 = st.equip;
     const useT = st.useTicket !== false;
-    const r = H.tryEnhance(st, b, useT);
+    const r = H.tryEnhance(st, b, useT, Math.random, { free: !!free });
     if (!r.ok) { toast(r.reason === 'coins' ? '코인이 부족해요' : '최대 단계예요'); return; }
     track('enhance', { g: b.g, from: before, res: r.result });
     openModal(`<h2>강화 중...</h2><div class="bimg shake">${batSVG(Object.assign({}, b, { e: before }))}</div><p>${name} +${before} → +${before + 1}</p>`);
     setTimeout(() => {
       let html;
       const nb = st.bats.find((x) => x.id === b.id);
-      if (r.result === 'success') { SFX.success(); vib([20, 30, 40]); html = `<h2>강화 성공!</h2><div class="bimg glow">${batSVG(nb)}</div><div class="res" style="color:#4cd97b">+${r.e} 달성</div>`; if (r.e >= 10) confetti(); }
+      if (r.result === 'success') { SFX.success(); vib([20, 30, 40]); html = `<h2>강화 성공!</h2><div class="bimg glow">${batSVG(nb)}</div><div class="res" style="color:#4cd97b">+${r.e} 달성</div>${r.pity ? '<p class="small" style="color:#ffd84a">🔥 강화 기운으로 확정 성공!</p>' : ''}`; if (r.e >= 10) confetti(); }
       else if (r.result === 'keep') { SFX.fail(); html = `<h2>강화 실패</h2><div class="bimg">${batSVG(nb)}</div><div class="res" style="color:#ffd84a">단계 유지 +${r.e}</div>`; }
       else if (r.result === 'down') { SFX.fail(); html = `<h2>강화 실패</h2><div class="bimg">${batSVG(nb)}</div><div class="res" style="color:#ff9a6a">+${before} → +${r.e} 하락</div>`; }
       else if (r.result === 'saved') { SFX.saved(); vib([30, 60, 30]); html = `<h2>휴, 살았다!</h2><div class="bimg">${batSVG(nb)}</div><div class="res" style="color:#6ff0ff">보호권이 파괴를 막았어요</div><p>+${before} → +${r.e}, 남은 보호권 ${st.tickets}개</p>`; }
       else { SFX.destroy(); vib([100, 50, 200]); G.shake = 0.4; html = `<h2>방망이 파괴...</h2><div class="res" style="color:#ff5a5a">${name} +${before} 파괴됨</div><p>보유한 가장 강한 방망이를 장착했어요</p>`; }
-      openModal(html + `<div class="mbtns"><button class="btn gray" data-close>닫기</button>${r.result !== 'destroy' && nb && nb.e < H.ENH_MAX ? '<button class="btn" id="again">한 번 더</button>' : ''}</div>`);
+      // 앱: 하락·보호권 사용·파괴를 광고 보고 되돌리기 (하루 3번, 파괴 복구는 그중 1번)
+      const bad = r.result === 'down' || r.result === 'saved' || r.result === 'destroy';
+      const canUndo = APPX.adOn() && bad && H.adLeft(st, 'eundo') > 0 && (r.result !== 'destroy' || H.adLeft(st, 'edestroy') > 0);
+      if (bad && !r.pity && nb) html += `<p class="small" style="color:#ff9a3a">🔥 강화 기운 ${Math.min(nb.p || 0, H.pityNeed(nb))}/${H.pityNeed(nb)}</p>`;
+      openModal(html + (canUndo ? `<button class="btn big green" id="undoEnh" style="width:100%;margin-top:6px">📺 광고 보고 되돌리기 (+${before} 유지) ${H.adLeft(st, 'eundo')}/${H.AD_LIMIT.eundo}</button>` : '') + `<div class="mbtns"><button class="btn gray" data-close>닫기</button>${r.result !== 'destroy' && nb && nb.e < H.ENH_MAX ? '<button class="btn" id="again">한 번 더</button>' : ''}</div>`);
       const ag = $('again'); if (ag) ag.onclick = () => { closeModal(); doEnhance(); };
+      const ud = $('undoEnh'); if (ud) ud.onclick = () => APPX.showReward('enh_undo', () => {
+        H.adUse(st, 'eundo'); if (r.result === 'destroy') H.adUse(st, 'edestroy');
+        const cur = st.bats.find((x) => x.id === snap.id);
+        if (cur) { cur.e = before; } else { const back = Object.assign({}, snap); back.p = (snap.p || 0) + 1; st.bats.push(back); st.destroyed = Math.max(0, (st.destroyed || 1) - 1); }
+        if (r.result === 'saved') st.tickets = tix0;
+        st.equip = equip0; SFX.saved(); closeModal(); toast('+' + before + '(으)로 되돌렸어요'); track('enh_undo', { res: r.result, e: before });
+        cpsAt = 0; updateHUD(); renderPanel(); save();
+      }, toast);
       cpsAt = 0; updateHUD(); renderPanel(); save();
     }, 750);
   }

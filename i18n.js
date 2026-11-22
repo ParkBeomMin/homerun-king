@@ -283,6 +283,10 @@
     ['🎟 도전권', '🎟 Tickets', '🎟 挑戦券'], ['🏆 랭킹 도전 (도전권 1장)', '🏆 Ranked try (1 ticket)', '🏆 ランキング挑戦（挑戦券1枚）'], ['📺 광고 보고 도전권 +1', '📺 Watch ad: +1 ticket', '📺 広告を見て挑戦券+1'],
     ['⚾ 연습하기 (기록·보상 없음)', '⚾ Practice (no record or reward)', '⚾ 練習（記録・報酬なし）'], ['오늘 도전권을 다 썼어요. 자정에', 'No tickets left today. At midnight you get', '今日の挑戦券は使い切りました。0時に'], ['장이 다시 생겨요', ' new tickets', '枚もどります'],
     ['도전권 +1', '+1 ticket', '挑戦券+1'], ['🎟 한 번 더 도전 (남은 도전권', '🎟 Try again (tickets left:', '🎟 もう一度挑戦（残り挑戦券'], ['스트라이크만 오는 10구 동안 홈런을 최대한 많이! 오늘 도전권', '10 strike-only pitches, as many homers as you can! Tickets today', 'ストライクだけの10球でホームランをできるだけ多く！今日の挑戦券'],
+    ['🔥 강화 기운', '🔥 Upgrade charge', '🔥 強化のオーラ'], ['가득! 다음 강화는 무조건 성공', 'Full! Next upgrade is guaranteed', 'MAX！次の強化は必ず成功'], ['실패할 때마다 차요 · 가득 차면 확정 성공', 'Fills on each fail · full = guaranteed', '失敗するたびにたまる・MAXで確定成功'],
+    ['🔥 강화 기운으로 확정 성공!', '🔥 Guaranteed by upgrade charge!', '🔥 強化のオーラで確定成功！'], ['⚡ 강화 확률', '⚡ Upgrade chance', '⚡ 強化確率'], ['적용 중', 'active', '適用中'], ['분 남음', ' min left', '分のこり'],
+    ['📺 무료 강화', '📺 Free upgrade', '📺 無料強化'], ['📺 10분 확률', '📺 10 min chance', '📺 10分確率'], ['📺 광고 보고 되돌리기', '📺 Watch ad to undo', '📺 広告を見て元に戻す'], ['유지', 'kept', 'キープ'],
+    ['(으)로 되돌렸어요', ' restored', 'に戻しました'], ['10분 동안 강화 확률', 'Upgrade chance for 10 min', '10分間 強化確率'],
     ['내 닉네임', 'My nickname', 'ニックネーム'], ['✏️ 바꾸기', '✏️ Edit', '✏️ 変更'], ['✏️ 닉네임', '✏️ Nickname', '✏️ ニックネーム'], ['랭킹에 보이는 이름이에요 (10자)', 'Shown on the ranking (10 chars)', 'ランキングに表示される名前です（10文字）'],
 
     ['다음 보상은 내일 이후에 열려요', 'Next reward unlocks on a later day', '次の報酬は明日以降に開きます'], ['베타 보상 받기', 'Claim beta rewards', 'ベータ報酬を受け取る'],

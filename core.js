@@ -101,6 +101,12 @@
   // 강화 비용: 등급 기본값 x 1.6^단계 x (6구장부터) 구장 코인 배율 x 명예 배율. 은퇴하면 구장 배율은 다시 낮아짐
   function enhCost(b, st) { return Math.ceil(GRADES[b.g].enhBase * Math.pow(1.6, b.e) * (st ? coinMultOf(Math.max(0, (st.maxStadium || 0) - 5)) * honorMult(st) : 1)); }
   function enhRate(b) { return b.e >= ENH_MAX ? 0 : ENH_RATE[b.e]; }
+  // 강화 기운: 실패할 때마다 방망이에 쌓이고, 가득 차면 다음 강화 확정 (성공률 50%면 3번, 25%면 6번, 10%면 15번)
+  function pityNeed(b) { const r = enhRate(b); return r <= 0 ? 0 : Math.max(2, Math.round(150 / r)); }
+  function pityFull(b) { return b.e < ENH_MAX && (b.p || 0) >= pityNeed(b); }
+  const ENH_BOOST = 10; // 광고 확률 부스트 +10%p
+  function enhBoostOn(st, now) { return (st.enhBoostUntil || 0) > (now || Date.now()); }
+  function enhRateNow(st, b, now) { if (b.e >= ENH_MAX) return 0; if (pityFull(b)) return 100; return Math.min(100, enhRate(b) + (enhBoostOn(st, now) ? ENH_BOOST : 0)); }
   function failText(e) {
     if (e < 5) return '실패해도 단계 유지';
     if (e < 10) return '실패 시 1단계 하락';
@@ -331,14 +337,15 @@
   function homerunRate(st, n) { return simAuto(st, n || 400, 777).hrRate; }
 
   // 강화 시도
-  function tryEnhance(st, b, useTicket, rng) {
-    rng = rng || Math.random;
-    const cost = enhCost(b, st);
+  function tryEnhance(st, b, useTicket, rng, opt) {
+    rng = rng || Math.random; opt = opt || {};
+    const cost = opt.free ? 0 : enhCost(b, st);
     if (b.e >= ENH_MAX) return { ok: false, reason: 'max' };
     if (st.coins < cost) return { ok: false, reason: 'coins' };
     st.coins -= cost; st.enhTries++; bump(st, 'enh');
-    const rate = enhRate(b);
-    if (rng() * 100 < rate) { b.e++; st.maxEnh = Math.max(st.maxEnh || 0, b.e); return { ok: true, result: 'success', e: b.e }; }
+    const pity = pityFull(b), rate = enhRateNow(st, b);
+    if (pity || rng() * 100 < rate) { b.e++; b.p = 0; st.maxEnh = Math.max(st.maxEnh || 0, b.e); return { ok: true, result: 'success', e: b.e, pity }; }
+    b.p = (b.p || 0) + 1;
     if (b.e < 5) return { ok: true, result: 'keep', e: b.e };
     if (b.e < 10) { b.e--; return { ok: true, result: 'down', e: b.e }; }
     if (rng() < DESTROY_CHANCE) {
@@ -469,7 +476,7 @@
   // 일반 15종(전설까지) 다 모으면 코인 +20%, 신화 3종까지 18종이면 +30%, 한정 4종을 다 모으면 +10% 더
   function dexCoin(st) { const n = dexNormal(st), d = st.dex || {}; return 1 + (n >= 18 ? 0.3 : n >= 15 ? 0.2 : 0) + (LIMITED_KEYS.every((k) => d['sp_' + k]) ? 0.1 : 0); }
   // 앱 보상형 광고: 하루 횟수 (한국 날짜 기준이 아니라 기기 날짜 기준, todayKey와 같음)
-  const AD_LIMIT = { box: 2, gems: 5, ticket: 3, boost: 3 };
+  const AD_LIMIT = { box: 2, gems: 5, ticket: 3, boost: 3, eundo: 3, edestroy: 1, eboost: 2, efree: 3 };
   function adLeft(st, k) { const d = todayKey(); if (!st.ad || st.ad.d !== d) st.ad = { d, c: {} }; return Math.max(0, AD_LIMIT[k] - (st.ad.c[k] || 0)); }
   function adUse(st, k) { adLeft(st, k); st.ad.c[k] = (st.ad.c[k] || 0) + 1; }
   function seasonOn(now) { return (now || Date.now()) < SEASON_END; }
@@ -647,7 +654,7 @@
   G.HR = {
     GRADES, TRAITS, BAT_NAMES, ENH_RATE, ENH_MAX, DESTROY_CHANCE, STADIUMS, HR_TO_CLEAR, STATS, BOX, INV_MAX,
     PREMIUM_GEMS, TICKET_GEMS, OFFLINE_MAX, OFFLINE_RATE, QMULT,
-    powerMult, speedMult, fameMult, statCost, batPower, batName, enhCost, enhRate, failText, newBat, rollGrade, newState,
+    powerMult, speedMult, fameMult, statCost, batPower, batName, enhCost, enhRate, pityNeed, pityFull, ENH_BOOST, enhBoostOn, enhRateNow, failText, newBat, rollGrade, newState,
     equipped, fenceOf, coinMultOf, resistOf, honorMult, canRetire, honorGain, retire, fmtDist, OUT_START, RETIRE_AT, HONOR_PCT, perfectWindow, goodWindow, weakWindow, autoPerfect, rollAutoQuality, specialChance,
     hitResult, cycleTime, takeTime, expectedCPS, simAuto, genPitch, swingOutcome, autoDecide, hitBonus, callPitch, resetCount, eyeOf, eyeRate, ballChance, edgeDist, PITCH_T, homerunRate, tryEnhance, removeBat, bestBat, woodPrice, normalBoxPrice, buy,
     mergeCandidates, merge, sell, applyHit, moveStadium, offlineReward, fmt,
