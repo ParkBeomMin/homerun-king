@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const H = window.HR;
-  const VERSION = 'v0.13 베타';
+  const VERSION = 'v0.13.1 베타';
   const SAVE_KEY = 'hrk_save_v1';
   const fmt = H.fmt;
   const $ = (id) => document.getElementById(id);
@@ -230,14 +230,28 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   // ---------- 홈런 더비 전용 화면 (대기실 → 경기 화면 → 결과 → 대기실) ----------
   const lobby = $('derbyLobby');
   let lobbyRank = null;
+  // 기본 닉네임: 처음 실행 때 자동으로 만든다(랭킹 등록 때 바로 쓰고, 대기실에서 바꿀 수 있음)
+  function genNick() {
+    const L = window.HRK_LANG, n = String(Math.floor(1000 + Math.random() * 9000));
+    const A = L === 'en' ? ['Swift', 'Iron', 'Gold', 'Blaze', 'Mega', 'Lucky', 'Ace'] : L === 'ja' ? ['イナズマ', 'ハガネ', 'ゴールド', 'ホノオ', 'ムテキ', 'ラッキー'] : ['번개', '강철', '황금', '불꽃', '무적', '행운', '슈퍼', '전설'];
+    const B = L === 'en' ? ['Bat', 'Hitter', 'Slug'] : L === 'ja' ? ['打者', 'スラッガー'] : ['타자', '거포', '슬러거'];
+    return (A[(Math.random() * A.length) | 0] + B[(Math.random() * B.length) | 0]).slice(0, 6) + n;
+  }
+  function nickModal(after) {
+    openModal(`<h2>✏️ 닉네임</h2><p class="small">랭킹에 보이는 이름이에요 (10자)</p>
+      <input id="nickEd" maxlength="10" value="${esc(st.nick || '')}" style="width:100%;margin:8px 0;border-radius:10px;border:2px solid #3d74b3;background:#0a1d36;color:#fff;font-family:inherit;font-size:20px;text-align:center;padding:8px">
+      <div class="mbtns"><button class="btn gray" data-close>취소</button><button class="btn" id="nickOk">저장</button></div>`);
+    $('nickOk').onclick = () => { const v = ($('nickEd').value || '').trim().slice(0, 10); if (!v) { toast('닉네임을 입력해 주세요'); return; } st.nick = v; save(); closeModal(); track('nick_change', {}); if (after) after(); };
+  }
   function lobbyHTML() {
     const can = H.derbyCanRank(st), me = lobbyRank && lobbyRank.findIndex((r) => r.id === st.devId);
     const list = lobbyRank == null ? '<p class="small" style="text-align:center">불러오는 중...</p>'
       : lobbyRank === false ? '<p class="small" style="text-align:center">지금은 랭킹을 불러올 수 없어요.</p>'
-      : lobbyRank.length ? lobbyRank.map((r, i) => `<div class="ir ${r.id === st.devId ? 'me' : ''}"><span>${i < 3 ? ['🥇', '🥈', '🥉'][i] : (i + 1) + '.'} ${esc(r.name)}</span><b>홈런 ${r.hr} · ${H.fmtDist(r.distm)}</b></div>`).join('')
+      : lobbyRank.length ? lobbyRank.map((r, i) => `<div class="ir ${r.id === st.devId ? 'me' : ''}"><span>${i < 3 ? ['🥇', '🥈', '🥉'][i] : (i + 1) + '.'} <span data-notr>${esc(r.name)}</span></span><b>홈런 ${r.hr} · ${H.fmtDist(r.distm)}</b></div>`).join('')
       : '<p class="small" style="text-align:center">아직 기록이 없어요. 첫 1등이 되어보세요!</p>';
     return `<div class="dtop"><h2>⚾ 홈런 더비</h2><button class="btn sm gray" id="dlBack">✕ 나가기</button></div>
       <div class="dsub">스트라이크만 오는 10구 승부 · 하루 1번 랭킹 도전 · ${H.weekKey()} 주간 랭킹 (월요일 초기화)</div>
+      <div class="dsub">내 닉네임 <b style="color:#fff" data-notr>${esc(st.nick || '')}</b> <button class="btn sm gray" id="dlNick" style="margin-left:6px">✏️ 바꾸기</button></div>
       <div class="dstat"><div>오늘 랭킹 도전<b>${can ? '남음' : '완료'}</b></div><div>내 최고<b>${st.derbyBest || 0}개</b></div><div>이번 주 순위<b>${me != null && me >= 0 ? me + 1 + '위' : '-'}</b></div></div>
       <div class="drank">${list}</div>
       <div class="dbtns">${can ? '<button class="btn big" id="dlRanked">🏆 랭킹 도전 시작</button>' : ''}<button class="btn big ${can ? 'blue' : ''}" id="dlPractice">⚾ 연습하기</button>
@@ -246,6 +260,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   function renderLobby() {
     lobby.innerHTML = lobbyHTML();
     $('dlBack').onclick = () => { SFX.click(); closeLobby(); };
+    $('dlNick').onclick = () => { SFX.click(); nickModal(() => { if (lobby.classList.contains('on')) renderLobby(); }); };
     const r = $('dlRanked'); if (r) r.onclick = () => { SFX.click(); startDerby(true); };
     $('dlPractice').onclick = () => { SFX.click(); startDerby(false); };
   }
@@ -1977,7 +1992,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     openModal('<h2>🏆 이번 주 홈런 더비 랭킹</h2><p>불러오는 중...</p>');
     try {
       const rows = await loadRank();
-      const list = rows.length ? rows.map((r, i) => `<div class="ir ${r.id === st.devId ? 'me' : ''}"><span>${i + 1}. ${esc(r.name)}</span><b>홈런 ${r.hr} · ${H.fmtDist(r.distm)}</b></div>`).join('') : '<p>아직 기록이 없어요. 첫 1등이 되어보세요!</p>';
+      const list = rows.length ? rows.map((r, i) => `<div class="ir ${r.id === st.devId ? 'me' : ''}"><span>${i + 1}. <span data-notr>${esc(r.name)}</span></span><b>홈런 ${r.hr} · ${H.fmtDist(r.distm)}</b></div>`).join('') : '<p>아직 기록이 없어요. 첫 1등이 되어보세요!</p>';
       openModal(`<h2>🏆 이번 주 홈런 더비 랭킹</h2><p class="small">${H.weekKey()} · 월요일에 새로 시작해요</p>${list}<div class="mbtns"><button class="btn big" data-close>닫기</button></div>`);
     } catch (e) { openModal('<h2>🏆 랭킹</h2><p>지금은 랭킹을 불러올 수 없어요.</p><div class="mbtns"><button class="btn big" data-close>닫기</button></div>'); }
   }
@@ -2186,6 +2201,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   // ---------- 시작 ----------
   const had = load();
   APPX.banner();
+  if (!st.nick) { st.nick = genNick(); save(); }
   applyLayout(); resize(); syncAuto(); syncHaptic(); startPitch();
   const appGift = APPX.app ? H.grantLimited(st, 'app') : null; if (appGift) save();
   const betaGift = APPX.beta ? H.grantLimited(st, 'beta') : null; if (APPX.beta) { H.betaTick(st); save(); }

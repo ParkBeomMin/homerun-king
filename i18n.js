@@ -279,6 +279,7 @@
     ['더비 대기실로', 'Derby lobby', 'ダービー待合室へ'], ['한 번 더 연습', 'Practice again', 'もう一度練習'],
     ['그만하면 지금까지 기록으로 오늘의 랭킹 도전이 끝나요. 그만할까요?', 'Quitting ends today\'s ranked try with your current score. Quit?', 'やめると今の記録で今日のランキング挑戦が終わります。やめますか？'],
     ['연습을 그만할까요?', 'Stop practicing?', '練習をやめますか？'], ['⚾ 홈런 더비', '⚾ Home Run Derby', '⚾ ホームランダービー'],
+    ['내 닉네임', 'My nickname', 'ニックネーム'], ['✏️ 바꾸기', '✏️ Edit', '✏️ 変更'], ['✏️ 닉네임', '✏️ Nickname', '✏️ ニックネーム'], ['랭킹에 보이는 이름이에요 (10자)', 'Shown on the ranking (10 chars)', 'ランキングに表示される名前です（10文字）'],
 
     ['다음 보상은 내일 이후에 열려요', 'Next reward unlocks on a later day', '次の報酬は明日以降に開きます'], ['베타 보상 받기', 'Claim beta rewards', 'ベータ報酬を受け取る'],
     ['일째 / 14일', ' days / 14', '日目 / 14日'], ['참여', 'Joined', '参加'],
@@ -296,8 +297,8 @@
   const P = window.CanvasRenderingContext2D && CanvasRenderingContext2D.prototype;
   if (P) for (const fn of ['fillText', 'strokeText', 'measureText']) { const orig = P[fn]; P[fn] = function (t, ...a) { return orig.call(this, tr(String(t)), ...a); }; }
   function walk(n) {
-    if (n.nodeType === 3) { const t = tr(n.nodeValue); if (t !== n.nodeValue) n.nodeValue = t; return; }
-    if (n.nodeType !== 1 || n.tagName === 'SCRIPT' || n.tagName === 'STYLE') return;
+    if (n.nodeType === 3) { if (n.parentElement && n.parentElement.closest('[data-notr]')) return; const t = tr(n.nodeValue); if (t !== n.nodeValue) n.nodeValue = t; return; }
+    if (n.nodeType !== 1 || n.tagName === 'SCRIPT' || n.tagName === 'STYLE' || n.hasAttribute('data-notr')) return;
     for (const a of ['placeholder', 'title', 'aria-label']) if (n.hasAttribute(a)) { const v = n.getAttribute(a), t = tr(v); if (t !== v) n.setAttribute(a, t); }
     for (const ch of n.childNodes) walk(ch);
   }
