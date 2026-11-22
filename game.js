@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const H = window.HR;
-  const VERSION = 'v0.14 베타';
+  const VERSION = 'v0.14.1 베타';
   const SAVE_KEY = 'hrk_save_v1';
   const fmt = H.fmt;
   const $ = (id) => document.getElementById(id);
@@ -168,6 +168,9 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
         const frames = []; let left = c.n;
         for (let i = 0; i < c.n; i++) { const im = new Image(); im.onload = () => { frames[i] = im; if (--left === 0) ART[who] = frames; }; im.src = 'assets/sprites/' + (who === 'hold' ? 'holdc' : who) + '_' + i + '.webp'; }
       }
+      // 보스 투구 동작 4장 (boss마다 bossw_{spr}_{0..3})
+      const bw = []; let bl = 20;
+      for (let b = 0; b < 5; b++) { bw[b] = []; for (let f = 0; f < 4; f++) { const im = new Image(); im.onload = () => { bw[b][f] = im; if (--bl === 0) ART.bossW = bw; }; im.src = 'assets/sprites/bossw_' + b + '_' + f + '.webp'; } }
     }).catch(() => {});
   }
   function setTabIcon() { document.querySelector('#tabs [data-t="bats"] b').innerHTML = '<span style="display:inline-block;width:34px">' + batSVG({ g: 4, t: 'power', e: 0 }) + '</span>'; }
@@ -873,6 +876,14 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   function drawPitcherFront() {
     const base = proj(0, 0, 18.4), s = base[2] * 1.35;
     const x = base[0], gy = base[1], h = 1.9 * s;
+    if (G.mode === 'boss' && ART.bossW) {
+      let fi = 0;
+      if (G.phase === 'windup') { const u = G.t / (0.8 / G.sp); fi = u < 0.3 ? 0 : u < 0.68 ? 1 : 2; }
+      else if (G.phase === 'pitch' || G.phase === 'call' || G.phase === 'launch') fi = G.phase === 'pitch' && G.t < 0.04 ? 2 : 3;
+      const im = ART.bossW[H.BOSSES[G.boss.i].spr][fi], dh = h * 1.2, dw = dh * im.width / im.height;
+      ctx.drawImage(im, x - dw / 2, gy - dh, dw, dh);
+      return;
+    }
     if (G.mode === 'boss' && ART.boss) {
       const im = ART.boss[H.BOSSES[G.boss.i].spr], dh = h * 1.2, dw = dh * im.width / im.height;
       const bob = G.phase === 'windup' ? Math.sin(G.t * 14) * 2 : 0;
