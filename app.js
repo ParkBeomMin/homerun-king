@@ -89,6 +89,7 @@
 
   window.HRKAPP = {
     app: APP,
+    beta: APP && window.HRK_BETA === true,
     storeUrl: STORE_URL,
     promoOn: () => !APP && !!STORE_URL,
     adOn: () => APP && !!AD.unit,

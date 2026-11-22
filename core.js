@@ -31,8 +31,9 @@
     derby: { name: '더비 챔피언 배트', g: 3, t: 'power', t2: 'luck', how: '홈런 더비 7개 이상 (랭킹 도전)' },
     season: { name: '개막 시즌 배트', g: 2, t: 'contact', t2: 'luck', how: '개막 이벤트 기간 출석 3회 (12/4까지)' },
     app: { name: '앱 스타 배트', g: 3, t: 'power', t2: 'contact', how: '안드로이드 앱에서 처음 시작하면 선물' },
+    beta: { name: '베타 개척자 배트', g: 4, t: 'power', t2: 'luck', how: '안드로이드 앱 베타 테스트 참여' },
   };
-  const LIMITED_KEYS = ['boss', 'derby', 'season', 'app'];
+  const LIMITED_KEYS = ['boss', 'derby', 'season', 'app', 'beta'];
   const SEASON_END = Date.UTC(2026, 11, 4, 15, 0, 0); // 2026-12-05 00:00 KST 전까지
   function hasT(b, t) { return !!b && (b.t === t || b.t2 === t); }
   function batKey(b) { return b.sp ? 'sp_' + b.sp : 'g' + b.g + '_' + b.t; }
@@ -532,6 +533,14 @@
     { id: 'enh', name: '방망이 강화 3번 시도', goal: 3, rew: { t: 'tickets', n: 1 } },
   ];
   const DAILY_ALL = { t: 'gems', n: 30 };
+  // 앱 베타 테스트 보상: 베타 앱을 연 날 수(하루 1번)로 쌓인다. 1일차는 베타 개척자 배트(앱 시작 때 지급)
+  const BETA_REW = [
+    { d: 1, r: { t: 'gems', n: 100 } }, { d: 3, r: { t: 'box', n: 1, gems: 50 } }, { d: 7, r: { t: 'gems', n: 300 } },
+    { d: 10, r: { t: 'tickets', n: 5 } }, { d: 14, r: { t: 'box', n: 1, gems: 500 } },
+  ];
+  function betaTick(st, now) { st.beta = st.beta || { n: 0, last: '', got: {} }; const d = todayKey(now); if (st.beta.last !== d) { st.beta.last = d; st.beta.n++; return true; } return false; }
+  function betaCan(st, i) { const b = st.beta; return !!b && b.n >= BETA_REW[i].d && !b.got[i]; }
+  function claimBeta(st, i) { if (!betaCan(st, i)) return null; st.beta.got[i] = true; return grant(st, BETA_REW[i].r); }
   const ACH = [
     { id: 'hr1', name: '첫 홈런', test: (s) => s.totalHR >= 1, gems: 10 },
     { id: 'hr100', name: '홈런 100개', test: (s) => s.totalHR >= 100, gems: 30 },
@@ -635,7 +644,7 @@
     equipped, fenceOf, coinMultOf, resistOf, honorMult, canRetire, honorGain, retire, fmtDist, OUT_START, RETIRE_AT, HONOR_PCT, perfectWindow, goodWindow, weakWindow, autoPerfect, rollAutoQuality, specialChance,
     hitResult, cycleTime, takeTime, expectedCPS, simAuto, genPitch, swingOutcome, autoDecide, hitBonus, callPitch, resetCount, eyeOf, eyeRate, ballChance, edgeDist, PITCH_T, homerunRate, tryEnhance, removeBat, bestBat, woodPrice, normalBoxPrice, buy,
     mergeCandidates, merge, sell, applyHit, moveStadium, offlineReward, fmt,
-    PITCH_TYPES, pitchTypesFor, AD_LIMIT, adLeft, adUse, LIMITED, LIMITED_KEYS, DEX_TOTAL, DERBY_BAT_HR, hasT, batKey, traitName, traitShort, traitDesc, hasLimited, grantLimited, seasonOn, dexNormal, markDex, dexRows, dexCount, dexMult, dexCoin, isWeekend, BOSSES, BOSS_HR, BOSS_OUTS, PITCHERS, pitcherOf, avgKmh, bossOpen, bossReward, winBoss, DERBY_N, weekKey, derbyCanRank, derbyScore, derbyReward,
+    PITCH_TYPES, pitchTypesFor, BETA_REW, betaTick, betaCan, claimBeta, AD_LIMIT, adLeft, adUse, LIMITED, LIMITED_KEYS, DEX_TOTAL, DERBY_BAT_HR, hasT, batKey, traitName, traitShort, traitDesc, hasLimited, grantLimited, seasonOn, dexNormal, markDex, dexRows, dexCount, dexMult, dexCoin, isWeekend, BOSSES, BOSS_HR, BOSS_OUTS, PITCHERS, pitcherOf, avgKmh, bossOpen, bossReward, winBoss, DERBY_N, weekKey, derbyCanRank, derbyScore, derbyReward,
     todayKey, ATT, DAILY, DAILY_ALL, ACH, daily, bump, rewardText, grant, attCan, attDay, claimAtt, dailyDone, claimDaily, claimDailyAll, achReady, claimAch, claimableCount,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

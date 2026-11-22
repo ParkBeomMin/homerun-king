@@ -261,7 +261,17 @@
     ['자동', 'Auto'], ['직접', 'Manual'], ['상자', 'Box'], ['오픈', 'opened'], ['보스', 'Boss'], ['더비', 'Derby'], ['연습', 'Practice'],
     ['이번 주', 'This week'], ['주간', 'Weekly'], ['도감', 'Collection'], ['코드', 'code'], ['이전', 'Transfer'], ['시즌', 'season'],
     ['을(를)', ''], ['이(가)', ''], ['은(는)', ''],
-  ]).map((x, i) => (LANG === 'ja' && JA[i] != null ? [x[0], JA[i]] : x)).sort((a, b) => b[0].length - a[0].length);
+    // v0.12부터 새 문구: [한국어, 영어, 일본어]
+    ['한 등급의 3종을 모두 모으면 비거리 +5% (최대 +30%). 전설까지 15종이면 코인 +20%, 신화까지 18종이면 +30%, 한정 5종을 다 모으면 +10% 더', 'Collect all 3 bats of a grade for +5% distance (up to +30%). 15 bats through Legend: +20% coins, all 18 through Mythic: +30%, all 5 limited bats: +10% more', '1つの等級の3種をすべて集めると飛距離+5%（最大+30%）。レジェンドまで15種でコイン+20%、神話まで18種で+30%、限定5種すべてでさらに+10%'],
+    ['테스트에 참여해 주셔서 고마워요! 앱을 연 날이 쌓일 때마다 보상을 드려요. 받은 보상은 정식 출시 뒤에도 그대로 남아요.', 'Thanks for testing! Rewards unlock as your days in the app add up. Everything you get stays after the official launch.', 'テストに参加してくれてありがとう！アプリを開いた日数に応じて報酬がもらえます。受け取った報酬は正式リリース後もそのまま残ります。'],
+    ['🧪 베타 테스터 감사 선물!', '🧪 Beta tester thank-you gift!', '🧪 ベータテスターへの感謝プレゼント！'],
+    ['🧪 베타 테스터 보상', '🧪 Beta Tester Rewards', '🧪 ベータテスター報酬'],
+    ['안드로이드 앱 베타 테스트 참여', 'Join the Android app beta test', 'Androidアプリのベータテストに参加'],
+    ['베타 개척자 배트', 'Beta Pioneer Bat', 'ベータ開拓者バット'],
+    ['개인정보처리방침', 'Privacy Policy', 'プライバシーポリシー'],
+    ['다음 보상은 내일 이후에 열려요', 'Next reward unlocks on a later day', '次の報酬は明日以降に開きます'], ['베타 보상 받기', 'Claim beta rewards', 'ベータ報酬を受け取る'],
+    ['일째 / 14일', ' days / 14', '日目 / 14日'], ['참여', 'Joined', '参加'],
+  ]).map((x, i) => (LANG === 'ja' ? [x[0], x[2] || (JA[i] != null ? JA[i] : x[1])] : x)).sort((a, b) => b[0].length - a[0].length);
   const cache = new Map();
   function tr(s) {
     if (!s || !/[가-힣]/.test(s)) return s;
