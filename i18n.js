@@ -279,6 +279,10 @@
     ['더비 대기실로', 'Derby lobby', 'ダービー待合室へ'], ['한 번 더 연습', 'Practice again', 'もう一度練習'],
     ['그만하면 지금까지 기록으로 오늘의 랭킹 도전이 끝나요. 그만할까요?', 'Quitting ends today\'s ranked try with your current score. Quit?', 'やめると今の記録で今日のランキング挑戦が終わります。やめますか？'],
     ['연습을 그만할까요?', 'Stop practicing?', '練習をやめますか？'], ['⚾ 홈런 더비', '⚾ Home Run Derby', '⚾ ホームランダービー'],
+    ['스트라이크만 오는 10구 승부 · 도전권 하루', '10 strike-only pitches · Tickets per day:', 'ストライクだけの10球勝負 · 挑戦券は1日'], ['이번 주 최고 기록만 랭킹에 남아요', 'only your best this week counts', '今週の最高記録だけがランキングに残ります'],
+    ['🎟 도전권', '🎟 Tickets', '🎟 挑戦券'], ['🏆 랭킹 도전 (도전권 1장)', '🏆 Ranked try (1 ticket)', '🏆 ランキング挑戦（挑戦券1枚）'], ['📺 광고 보고 도전권 +1', '📺 Watch ad: +1 ticket', '📺 広告を見て挑戦券+1'],
+    ['⚾ 연습하기 (기록·보상 없음)', '⚾ Practice (no record or reward)', '⚾ 練習（記録・報酬なし）'], ['오늘 도전권을 다 썼어요. 자정에', 'No tickets left today. At midnight you get', '今日の挑戦券は使い切りました。0時に'], ['장이 다시 생겨요', ' new tickets', '枚もどります'],
+    ['도전권 +1', '+1 ticket', '挑戦券+1'], ['🎟 한 번 더 도전 (남은 도전권', '🎟 Try again (tickets left:', '🎟 もう一度挑戦（残り挑戦券'], ['스트라이크만 오는 10구 동안 홈런을 최대한 많이! 오늘 도전권', '10 strike-only pitches, as many homers as you can! Tickets today', 'ストライクだけの10球でホームランをできるだけ多く！今日の挑戦券'],
     ['내 닉네임', 'My nickname', 'ニックネーム'], ['✏️ 바꾸기', '✏️ Edit', '✏️ 変更'], ['✏️ 닉네임', '✏️ Nickname', '✏️ ニックネーム'], ['랭킹에 보이는 이름이에요 (10자)', 'Shown on the ranking (10 chars)', 'ランキングに表示される名前です（10文字）'],
 
     ['다음 보상은 내일 이후에 열려요', 'Next reward unlocks on a later day', '次の報酬は明日以降に開きます'], ['베타 보상 받기', 'Claim beta rewards', 'ベータ報酬を受け取る'],

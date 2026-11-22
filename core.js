@@ -515,7 +515,14 @@
     const wk = Math.ceil(((t - y0) / 864e5 + 1) / 7);
     return t.getUTCFullYear() + '-W' + String(wk).padStart(2, '0');
   }
-  function derbyCanRank(st, now) { return !st.derby || st.derby.date !== todayKey(now); }
+  // 홈런 더비 도전권: 하루 3장(기기 날짜 기준), 앱에서는 광고로 하루 1장 더. 랭킹은 이번 주 최고 기록만 남는다
+  const DERBY_FREE = 3, DERBY_AD = 1;
+  function derbyT(st, now) { const d = todayKey(now); if (!st.dt || st.dt.d !== d) st.dt = { d, used: 0, ad: 0 }; return st.dt; }
+  function derbyLeft(st, now) { const t = derbyT(st, now); return Math.max(0, DERBY_FREE + t.ad - t.used); }
+  function derbyCanRank(st, now) { return derbyLeft(st, now) > 0; }
+  function derbyUse(st, now) { if (!derbyCanRank(st, now)) return false; derbyT(st, now).used++; return true; }
+  function derbyAdLeft(st, now) { return Math.max(0, DERBY_AD - derbyT(st, now).ad); }
+  function derbyAddAd(st, now) { if (derbyAdLeft(st, now) <= 0) return false; derbyT(st, now).ad++; return true; }
   function derbyScore(hr, distm) { return hr * 1e9 + Math.min(999999999, Math.max(0, Math.round(distm))); }
   const DERBY_BAT_HR = 7;
   function derbyReward(st, hr) { const gems = hr * 3; const c = Math.max(50, Math.floor(expectedCPS(st, 150) * hr * 60)); st.gems += gems; st.coins += c; const bat = hr >= DERBY_BAT_HR ? grantLimited(st, 'derby') : null; return { gems, coins: c, bat }; }
@@ -644,7 +651,7 @@
     equipped, fenceOf, coinMultOf, resistOf, honorMult, canRetire, honorGain, retire, fmtDist, OUT_START, RETIRE_AT, HONOR_PCT, perfectWindow, goodWindow, weakWindow, autoPerfect, rollAutoQuality, specialChance,
     hitResult, cycleTime, takeTime, expectedCPS, simAuto, genPitch, swingOutcome, autoDecide, hitBonus, callPitch, resetCount, eyeOf, eyeRate, ballChance, edgeDist, PITCH_T, homerunRate, tryEnhance, removeBat, bestBat, woodPrice, normalBoxPrice, buy,
     mergeCandidates, merge, sell, applyHit, moveStadium, offlineReward, fmt,
-    PITCH_TYPES, pitchTypesFor, BETA_REW, betaTick, betaCan, claimBeta, AD_LIMIT, adLeft, adUse, LIMITED, LIMITED_KEYS, DEX_TOTAL, DERBY_BAT_HR, hasT, batKey, traitName, traitShort, traitDesc, hasLimited, grantLimited, seasonOn, dexNormal, markDex, dexRows, dexCount, dexMult, dexCoin, isWeekend, BOSSES, BOSS_HR, BOSS_OUTS, PITCHERS, pitcherOf, avgKmh, bossOpen, bossReward, winBoss, DERBY_N, weekKey, derbyCanRank, derbyScore, derbyReward,
+    PITCH_TYPES, pitchTypesFor, BETA_REW, betaTick, betaCan, claimBeta, AD_LIMIT, adLeft, adUse, LIMITED, LIMITED_KEYS, DEX_TOTAL, DERBY_BAT_HR, hasT, batKey, traitName, traitShort, traitDesc, hasLimited, grantLimited, seasonOn, dexNormal, markDex, dexRows, dexCount, dexMult, dexCoin, isWeekend, BOSSES, BOSS_HR, BOSS_OUTS, PITCHERS, pitcherOf, avgKmh, bossOpen, bossReward, winBoss, DERBY_N, weekKey, DERBY_FREE, DERBY_AD, derbyLeft, derbyUse, derbyAdLeft, derbyAddAd, derbyCanRank, derbyScore, derbyReward,
     todayKey, ATT, DAILY, DAILY_ALL, ACH, daily, bump, rewardText, grant, attCan, attDay, claimAtt, dailyDone, claimDaily, claimDailyAll, achReady, claimAch, claimableCount,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
