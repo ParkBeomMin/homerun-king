@@ -183,6 +183,33 @@ html.in-app #app.swap #tabs{padding-bottom:0}
 html.in-app #app.swap #fieldWrap{margin-bottom:max(env(safe-area-inset-bottom),var(--safe-area-inset-bottom,0px))}
 html[lang=ja] #title h1{font-size:44px;white-space:nowrap}
 html[lang=ja] #title h1 span{font-size:52px}
+/* 홈런 더비 전용 화면 */
+#derbyLobby{position:fixed;inset:0;margin:0 auto;max-width:480px;z-index:40;display:none;flex-direction:column;background:radial-gradient(circle at 50% 0%,#2a5d9a 0%,#0b2140 55%,#071629 100%);padding:max(14px,env(safe-area-inset-top),var(--safe-area-inset-top,0px)) 14px max(14px,env(safe-area-inset-bottom),var(--safe-area-inset-bottom,0px));overflow-y:auto}
+#derbyLobby.on{display:flex}
+#derbyLobby .dtop{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+#derbyLobby h2{margin:0;font-weight:normal;font-size:30px;color:#ffd84a;-webkit-text-stroke:2px #4a2400;paint-order:stroke fill;text-shadow:0 4px 0 #8a4a00}
+#derbyLobby .dsub{color:#bcd3f5;font-size:13px;margin-bottom:10px}
+#derbyLobby .dstat{display:flex;gap:8px;margin:6px 0 12px}
+#derbyLobby .dstat div{flex:1;background:rgba(10,29,54,.8);border:2px solid #2b5a8f;border-radius:12px;padding:8px;text-align:center;font-size:12px;color:#9fb4d6}
+#derbyLobby .dstat b{display:block;font-size:20px;color:#fff;font-weight:normal}
+#derbyLobby .drank{flex:1;min-height:180px;background:rgba(10,29,54,.8);border:2px solid #2b5a8f;border-radius:14px;padding:10px;overflow-y:auto}
+#derbyLobby .drank .ir{display:flex;justify-content:space-between;padding:6px 8px;font-size:15px;border-bottom:1px solid rgba(61,116,179,.3)}
+#derbyLobby .drank .ir.me{background:rgba(255,216,74,.15);border-radius:8px}
+#derbyLobby .drank .ir:nth-child(1) span{color:#ffd84a}#derbyLobby .drank .ir:nth-child(2) span{color:#dfe8f5}#derbyLobby .drank .ir:nth-child(3) span{color:#ffb070}
+#derbyLobby .dbtns{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+body.derby-on #ctrl,body.derby-on #panel,body.derby-on #tabs{display:none!important}
+body.derby-on #fieldWrap{flex:1 1 auto;height:auto;max-height:none}
+body.derby-on #tapHint,body.derby-on #guide{display:none!important}
+#derbyHud{display:none;position:absolute;left:0;right:0;bottom:0;z-index:3;padding:8px 10px calc(8px + env(safe-area-inset-bottom));background:linear-gradient(rgba(5,15,35,0),rgba(5,15,35,.85) 40%);pointer-events:none}
+body.derby-on #derbyHud{display:block}
+#derbyHud .row1{display:flex;align-items:flex-end;justify-content:space-between}
+#derbyHud .hrbig{font-size:40px;color:#ffd84a;-webkit-text-stroke:2px #4a2400;paint-order:stroke fill;line-height:1}
+#derbyHud .hrbig small{font-size:16px;color:#fff;-webkit-text-stroke:0}
+#derbyHud .info{text-align:right;color:#dfe8f5;font-size:13px}
+#derbyHud .dots{display:flex;gap:5px;margin-top:6px}
+#derbyHud .dots i{flex:1;height:10px;border-radius:5px;background:rgba(255,255,255,.25)}
+#derbyHud .dots i.hr{background:#ffd84a;box-shadow:0 0 6px #ffd84a}#derbyHud .dots i.no{background:#5a6a85}#derbyHud .dots i.now{background:#fff;animation:gm 1s infinite}
+#derbyQuit{pointer-events:auto;position:absolute;right:10px;top:-34px;padding:5px 10px;font-size:12px;border-radius:10px;border:none;background:rgba(5,15,35,.7);color:#fff;font-family:inherit}
 .ver{font-size:11px;color:#6d8bb0;text-align:center;margin:10px 0 4px}
 </style>
 <script>
@@ -214,6 +241,7 @@ window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(argu
     <div id="tapHint">존 안의 공이 오면 탭! 볼은 참으세요</div>
     <div id="toast"></div>
     <div id="guide"><span id="guideTxt"></span><button id="guideSkip">건너뛰기</button></div>
+    <div id="derbyHud"><button id="derbyQuit">그만하기</button><div class="row1"><div class="hrbig" id="dHr">0<small> 홈런</small></div><div class="info"><div id="dLeft">10구 남음</div><div id="dBest">최장 -</div></div></div><div class="dots" id="dDots"></div></div>
   </div>
   <div id="ctrl">
     <button id="autoBtn" class="tog on">자동 타격 ON</button>
@@ -231,10 +259,11 @@ window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(argu
   </nav>
 </div>
 <div id="title"><div class="tlogo"><img id="tEmblem" src="assets/ui/emblem.webp" alt="" onerror="this.style.display='none'"><h1>홈런왕<br><span>키우기</span></h1></div><div class="ttap">화면을 탭해서 시작</div><div class="tver" id="tVer"></div></div>
+<div id="derbyLobby"></div>
 <div id="modal" class="hidden"></div>
-<script src="i18n.js?v=0.12.1"></script>
-<script src="app.js?v=0.12.1"></script>
-<script src="core.js?v=0.12.1"></script>
-<script src="game.js?v=0.12.1"></script>
+<script src="i18n.js?v=0.13"></script>
+<script src="app.js?v=0.13"></script>
+<script src="core.js?v=0.13"></script>
+<script src="game.js?v=0.13"></script>
 </body>
 </html>

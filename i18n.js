@@ -269,6 +269,17 @@
     ['안드로이드 앱 베타 테스트 참여', 'Join the Android app beta test', 'Androidアプリのベータテストに参加'],
     ['베타 개척자 배트', 'Beta Pioneer Bat', 'ベータ開拓者バット'],
     ['개인정보처리방침', 'Privacy Policy', 'プライバシーポリシー'],
+    ['스트라이크만 오는 10구 승부 · 하루 1번 랭킹 도전 ·', '10 strike-only pitches · 1 ranked try a day ·', 'ストライクだけの10球勝負 · ランキング挑戦は1日1回 ·'],
+    ['주간 랭킹 (월요일 초기화)', 'weekly ranking (resets Monday)', '週間ランキング（月曜リセット）'],
+    ['오늘 랭킹 도전', 'Ranked try today', '今日のランキング挑戦'], ['이번 주 순위', 'This week', '今週の順位'], ['내 최고', 'My best', '自己ベスト'],
+    ['🏆 랭킹 도전 시작', '🏆 Start ranked try', '🏆 ランキング挑戦スタート'], ['⚾ 연습하기', '⚾ Practice', '⚾ 練習する'], ['✕ 나가기', '✕ Exit', '✕ 戻る'],
+    ['랭킹 도전에서 7개 이상 치면 한정 방망이 \'더비 챔피언 배트\'!', 'Hit 7+ in a ranked try to earn the limited Derby Champion Bat!', 'ランキング挑戦で7本以上打つと限定バット「ダービー王者バット」！'],
+    ['⚾ 홈런 더비 입장', '⚾ Enter Home Run Derby', '⚾ ホームランダービーへ'], ['(랭킹 도전 가능)', '(ranked try ready)', '（ランキング挑戦できます）'],
+    ['그만하기', 'Quit', 'やめる'], ['구 남음', ' pitches left', '球のこり'], ['최장', 'Longest', '最長'], ['남음', 'Left', 'あり'],
+    ['더비 대기실로', 'Derby lobby', 'ダービー待合室へ'], ['한 번 더 연습', 'Practice again', 'もう一度練習'],
+    ['그만하면 지금까지 기록으로 오늘의 랭킹 도전이 끝나요. 그만할까요?', 'Quitting ends today\'s ranked try with your current score. Quit?', 'やめると今の記録で今日のランキング挑戦が終わります。やめますか？'],
+    ['연습을 그만할까요?', 'Stop practicing?', '練習をやめますか？'], ['⚾ 홈런 더비', '⚾ Home Run Derby', '⚾ ホームランダービー'],
+
     ['다음 보상은 내일 이후에 열려요', 'Next reward unlocks on a later day', '次の報酬は明日以降に開きます'], ['베타 보상 받기', 'Claim beta rewards', 'ベータ報酬を受け取る'],
     ['일째 / 14일', ' days / 14', '日目 / 14日'], ['참여', 'Joined', '参加'],
   ]).map((x, i) => (LANG === 'ja' ? [x[0], x[2] || (JA[i] != null ? JA[i] : x[1])] : x)).sort((a, b) => b[0].length - a[0].length);
