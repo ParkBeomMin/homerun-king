@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const H = window.HR;
-  const VERSION = 'v0.15 베타';
+  const VERSION = 'v0.15.1 베타';
   const SAVE_KEY = 'hrk_save_v1';
   const fmt = H.fmt;
   const $ = (id) => document.getElementById(id);
@@ -1890,6 +1890,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     try { await document.fonts.load('80px Jua'); } catch (e) { /* noop */ }
     const b = H.equipped(st);
     const [ka, em, bi] = await Promise.all([loadImgP('assets/ui/key_art.webp'), loadImgP('assets/ui/emblem.webp'), BAT_ART ? loadImgP('assets/bats/' + H.batKey(b) + '.webp') : null]);
+    const qr = await loadImgP('assets/ui/qr_share.png');
     const g0 = x.createLinearGradient(0, 0, 0, Hc); g0.addColorStop(0, '#123a6b'); g0.addColorStop(1, '#071629'); x.fillStyle = g0; x.fillRect(0, 0, Wc, Hc);
     if (ka) { const sc = Math.max(Wc / ka.width, Hc / ka.height); x.globalAlpha = 0.55; x.drawImage(ka, (Wc - ka.width * sc) / 2, (Hc - ka.height * sc) / 2, ka.width * sc, ka.height * sc); x.globalAlpha = 1; }
     const ov = x.createLinearGradient(0, 0, 0, Hc); ov.addColorStop(0, 'rgba(5,15,35,.75)'); ov.addColorStop(0.45, 'rgba(5,15,35,.35)'); ov.addColorStop(1, 'rgba(5,15,35,.92)'); x.fillStyle = ov; x.fillRect(0, 0, Wc, Hc);
@@ -1902,9 +1903,17 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     const reach = H.STADIUMS[Math.max(st.maxEver || 0, st.maxStadium)].name;
     const rows = [['총 홈런', fmt(st.totalHR) + '개'], ['도달한 곳', reach], ['명예', fmt(st.honor || 0) + ' (은퇴 ' + (st.retires || 0) + '회)']];
     rows.forEach((r, i) => { const y = 800 + i * 78; x.fillStyle = 'rgba(255,255,255,.08)'; x.fillRect(150, y - 52, Wc - 300, 66); txt(r[0], 190, y, 40, '#a9c2e0', 'rgba(0,0,0,.4)', 'left'); txt(r[1], Wc - 190, y, 44, '#ffffff', 'rgba(0,0,0,.4)', 'right'); });
-    if (bi) { const bw = 640, bh = bw * bi.height / bi.width; x.drawImage(bi, (Wc - bw) / 2, 1065 - bh / 2, bw, bh); }
-    txt(H.batName(b) + ' +' + b.e, Wc / 2, 1160, 46, H.GRADES[b.g].color);
-    txt('parkbeommin.github.io/homerun-king', Wc / 2, 1290, 36, '#cfe4ff');
+    // 아래쪽: 왼쪽에 장착 방망이, 오른쪽에 QR (찍으면 바로 게임으로)
+    const bx = qr ? 410 : Wc / 2;
+    if (bi) { const bw = qr ? 560 : 640, bh = bw * bi.height / bi.width; x.drawImage(bi, bx - bw / 2, 1075 - bh / 2, bw, bh); }
+    txt(H.batName(b) + ' +' + b.e, bx, 1170, 46, H.GRADES[b.g].color);
+    if (qr) {
+      const qs = 210, qx = Wc - qs - 70, qy = 1060;
+      x.fillStyle = '#ffffff'; x.beginPath(); x.roundRect ? x.roundRect(qx - 12, qy - 12, qs + 24, qs + 24, 22) : x.rect(qx - 12, qy - 12, qs + 24, qs + 24); x.fill();
+      x.imageSmoothingEnabled = false; x.drawImage(qr, qx, qy, qs, qs); x.imageSmoothingEnabled = true;
+      txt('📱 찍으면 바로 플레이', qx + qs / 2, qy + qs + 56, 30, '#ffd84a');
+      txt('parkbeommin.github.io/homerun-king', bx, 1290, 32, '#cfe4ff');
+    } else txt('parkbeommin.github.io/homerun-king', Wc / 2, 1290, 36, '#cfe4ff');
     return c;
   }
   async function shareCard() {

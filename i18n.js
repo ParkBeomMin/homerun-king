@@ -287,6 +287,7 @@
     ['🔥 강화 기운으로 확정 성공!', '🔥 Guaranteed by upgrade charge!', '🔥 強化のオーラで確定成功！'], ['⚡ 강화 확률', '⚡ Upgrade chance', '⚡ 強化確率'], ['적용 중', 'active', '適用中'], ['분 남음', ' min left', '分のこり'],
     ['📺 무료 강화', '📺 Free upgrade', '📺 無料強化'], ['📺 10분 확률', '📺 10 min chance', '📺 10分確率'], ['📺 광고 보고 되돌리기', '📺 Watch ad to undo', '📺 広告を見て元に戻す'], ['유지', 'kept', 'キープ'],
     ['(으)로 되돌렸어요', ' restored', 'に戻しました'], ['10분 동안 강화 확률', 'Upgrade chance for 10 min', '10分間 強化確率'],
+    ['📱 찍으면 바로 플레이', '📱 Scan to play', '📱 スキャンしてプレイ'],
     ['내 닉네임', 'My nickname', 'ニックネーム'], ['✏️ 바꾸기', '✏️ Edit', '✏️ 変更'], ['✏️ 닉네임', '✏️ Nickname', '✏️ ニックネーム'], ['랭킹에 보이는 이름이에요 (10자)', 'Shown on the ranking (10 chars)', 'ランキングに表示される名前です（10文字）'],
 
     ['다음 보상은 내일 이후에 열려요', 'Next reward unlocks on a later day', '次の報酬は明日以降に開きます'], ['베타 보상 받기', 'Claim beta rewards', 'ベータ報酬を受け取る'],
