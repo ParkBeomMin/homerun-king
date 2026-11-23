@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const H = window.HR;
-  const VERSION = 'v0.15.1 베타';
+  const VERSION = 'v0.15.2 베타';
   const SAVE_KEY = 'hrk_save_v1';
   const fmt = H.fmt;
   const $ = (id) => document.getElementById(id);
@@ -1620,19 +1620,28 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       <button class="btn sm blue" id="langBtn">🌐 ${{ ko: 'English', en: '日本語', ja: '한국어' }[window.HRK_LANG] || 'English'}</button>
       <button class="btn sm ${st.sound ? 'green' : 'gray'}" id="sndBtn">사운드 ${st.sound ? 'ON' : 'OFF'}</button>
       <button class="btn sm ${st.vibe !== false ? 'green' : 'gray'}" id="vibBtn">진동 ${st.vibe !== false ? 'ON' : 'OFF'}</button>
+      ${fbBtn()}
       <button class="btn sm red" id="resetBtn">처음부터 하기</button></div>
       <div class="ver">홈런왕 키우기 ${VERSION} · <a href="https://parkbeommin.github.io/homerun-king/privacy.html" target="_blank" rel="noopener" style="color:inherit">개인정보처리방침</a></div>`;
     return h;
   }
 
   function rewardToast(r) { toast(r.text + ' 받았어요'); if (r.bat) setTimeout(() => queueModal(() => revealModal(r.bat, '고급 상자 오픈!')), 200); }
+  // 세 게임 공용 의견 폼 (스핀 디펜스·라인파티와 같이 씀): 게임·버전·기기 미리 채움
+  function feedbackURL() {
+    const ua = navigator.userAgent, m = ua.match(/Android [\d.]+;[^)]*/) || ua.match(/iPhone OS [\d_]+|Mac OS X [\d_]+|Windows NT [\d.]+/);
+    const dev = (m ? m[0] : 'unknown').replace(/; wv$/, '').replace(/ Build\/[^;]*/, '').slice(0, 80);
+    const info = VERSION.replace(' 베타', '') + ' / ' + (window.HRK_APP === true ? 'android app' : 'web') + ' / ' + dev + ' / ' + (window.HRK_LANG || 'ko');
+    return 'https://docs.google.com/forms/d/e/1FAIpQLSc-PdektEWxmc5bZoA4NFHv9_blNanu3HRvebDuY1kLvTWEHA/viewform?usp=pp_url&entry.1189017881=' + encodeURIComponent('홈런왕 키우기 (Homerun King)') + '&entry.1950440059=' + encodeURIComponent(info);
+  }
+  function fbBtn(cls) { return `<a class="btn ${cls || 'sm blue'}" data-fb href="${feedbackURL()}" target="_blank" rel="noopener" style="text-decoration:none;text-align:center">💬 의견·버그 보내기</a>`; }
   function betaHTML() {
     if (!APPX.beta) return '';
     const n = (st.beta && st.beta.n) || 0;
     let h = `<div class="h">🧪 베타 테스터 보상 <span class="r small">참여 ${n}일째 / 14일</span></div><div class="card"><div class="small" style="margin-bottom:6px">테스트에 참여해 주셔서 고마워요! 앱을 연 날이 쌓일 때마다 보상을 드려요. 받은 보상은 정식 출시 뒤에도 그대로 남아요.</div><div class="attrow">`;
     let k = 0;
     H.BETA_REW.forEach((b, i) => { const got = st.beta && st.beta.got[i], can = H.betaCan(st, i); if (can) k++; h += `<div class="attd ${got ? 'got' : can ? 'now' : ''}"><b>${b.d}일</b><span>${H.rewardText(b.r)}</span>${got ? '<i>✓</i>' : ''}</div>`; });
-    return h + `</div><button class="btn big green" data-beta="all" ${k ? '' : 'disabled'}>${k ? '베타 보상 받기 (' + k + '개)' : '다음 보상은 내일 이후에 열려요'}</button></div>`;
+    return h + `</div><button class="btn big green" data-beta="all" ${k ? '' : 'disabled'}>${k ? '베타 보상 받기 (' + k + '개)' : '다음 보상은 내일 이후에 열려요'}</button><div style="display:flex;margin-top:6px">${fbBtn('sm gray" style="flex:1;text-decoration:none;text-align:center')}</div></div>`;
   }
   function renderMission() {
     const d = H.daily(st), can = H.attCan(st), day = H.attDay(st);
@@ -1874,6 +1883,23 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       <div class="mbtns"><button class="btn big" data-close>닫기</button></div>`);
   }
 
+  // 첫 실행 환영 선물: 출석 + 앱 설치 선물 + 베타 선물을 창 하나로 (테스터 의견: 팝업 3개 연속은 많다)
+  function welcomeModal(gifts, att) {
+    const r = att ? H.ATT[H.attDay(st)] : null;
+    const card = (b, tag) => `<div style="flex:1;min-width:0;background:rgba(255,255,255,.06);border-radius:12px;padding:8px 4px"><div class="small" style="color:#ffd84a">${tag}</div><div class="wcb" style="height:64px;display:flex;align-items:center;justify-content:center;overflow:hidden">${batSVG(b, true)}</div><div class="small" style="color:#ff8ab5">${H.batName(b)}</div><div class="small">${H.GRADES[b.g].name} · ${H.traitName(b)}</div></div>`;
+    openModal(`<style>.wcb img,.wcb svg{max-width:100%!important;max-height:60px!important;width:auto;height:auto}</style><h2>🎁 환영 선물</h2><p>홈런왕 키우기에 온 걸 환영해요! 선물을 한 번에 받아 가세요.</p>
+      <div style="display:flex;gap:6px;margin:8px 0">${gifts.map((g) => card(g.b, g.tag)).join('')}</div>
+      ${r ? `<div class="card" style="margin:6px 0;padding:8px"><b>📅 출석 1일차</b> · ${H.rewardText(r)} <span class="small">(매일 들어오면 7일 동안 보상이 커져요)</span></div>` : ''}
+      <div class="mbtns"><button class="btn big" id="wcGet">모두 받기</button></div>`);
+    $('wcGet').onclick = () => {
+      let msg = '';
+      if (r) { const g = H.claimAtt(st); if (g) { track('att_claim', { n: st.att.n }); msg = g.text; } }
+      const best = gifts.map((g) => g.b).sort((a, b) => H.batPower(b) - H.batPower(a))[0];
+      if (best && H.batPower(best) > H.batPower(H.equipped(st))) { st.equip = best.id; msg = (msg ? msg + ', ' : '') + H.batName(best) + ' 장착'; }
+      closeModal(); SFX.box(); vib(30); confetti(); toast((msg || '선물') + ' 완료!'); track('welcome_claim', { n: gifts.length });
+      cpsAt = 0; updateHUD(); renderPanel(); save();
+    };
+  }
   function attModal() {
     const day = H.attDay(st), r = H.ATT[day];
     openModal(`<h2>📅 출석 ${day + 1}일차</h2><p>매일 들어오면 7일 동안 보상이 커져요. 7일차엔 고급 상자!</p>
@@ -2123,7 +2149,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     if (T.done()) {
       const r = H.grant(st, T.rew); toast('튜토리얼 ' + (st.tut + 1) + '/' + TUT.length + ' 완료! ' + r.text); SFX.up();
       st.tut++; track('tut_step', { n: st.tut });
-      if (st.tut >= TUT.length) { toast('튜토리얼 완료! 이제 홈런왕을 향해!'); if (!st.layoutAsked) setTimeout(() => queueModal(layoutAsk), 1500); }
+      if (st.tut >= TUT.length) { toast('튜토리얼 완료! 이제 홈런왕을 향해!'); }
       markDirty(); return;
     }
     g.style.display = 'flex'; $('tapHint').style.display = 'none';
@@ -2260,11 +2286,13 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     audio(); SFX.click(); title.classList.add('out');
     setTimeout(() => { title.style.display = 'none'; }, 350);
     if (pendingOff && pendingOff.coins > 0) offlineModal(pendingOff);
-    if (H.attCan(st)) queueModal(attModal);
+    const gifts = [];
+    if (appGift) { track('app_gift', {}); gifts.push({ b: appGift, tag: '📱 앱 설치 선물' }); }
+    if (betaGift) { track('beta_gift', {}); gifts.push({ b: betaGift, tag: '🧪 베타 감사 선물' }); }
+    if (gifts.length) queueModal(() => welcomeModal(gifts, H.attCan(st)));
+    else if (H.attCan(st)) queueModal(attModal);
     BGM.start(); VOICE.load(); startIntro();
-    if (!st.layoutAsked && (st.tut == null || st.tut >= TUT.length)) queueModal(layoutAsk);
-    if (appGift) { track('app_gift', {}); queueModal(() => revealModal(appGift, '📱 앱 설치 선물!')); }
-    if (betaGift) { track('beta_gift', {}); queueModal(() => revealModal(betaGift, '🧪 베타 테스터 감사 선물!')); }
+    if (!gifts.length && !st.layoutAsked && (st.tut == null || st.tut >= TUT.length)) queueModal(layoutAsk);
     if (APPX.promoOn() && st.promoDay !== H.todayKey() && (st.totalHits || 0) >= 30) queueModal(appPromoModal);
     track('title_start', {});
   });

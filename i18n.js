@@ -288,6 +288,8 @@
     ['📺 무료 강화', '📺 Free upgrade', '📺 無料強化'], ['📺 10분 확률', '📺 10 min chance', '📺 10分確率'], ['📺 광고 보고 되돌리기', '📺 Watch ad to undo', '📺 広告を見て元に戻す'], ['유지', 'kept', 'キープ'],
     ['(으)로 되돌렸어요', ' restored', 'に戻しました'], ['10분 동안 강화 확률', 'Upgrade chance for 10 min', '10分間 強化確率'],
     ['📱 찍으면 바로 플레이', '📱 Scan to play', '📱 スキャンしてプレイ'],
+    ['💬 의견·버그 보내기', '💬 Send feedback', '💬 ご意見・バグ報告'], ['🎁 환영 선물', '🎁 Welcome gifts', '🎁 ウェルカムギフト'], ['홈런왕 키우기에 온 걸 환영해요! 선물을 한 번에 받아 가세요.', 'Welcome to Homerun King! Grab all your gifts at once.', 'ホームラン王育成へようこそ！プレゼントをまとめて受け取ってね。'],
+    ['📱 앱 설치 선물', '📱 App install gift', '📱 アプリ導入ギフト'], ['🧪 베타 감사 선물', '🧪 Beta thank-you gift', '🧪 ベータ感謝ギフト'], ['📅 출석 1일차', '📅 Check-in day 1', '📅 出席1日目'], ['(매일 들어오면 7일 동안 보상이 커져요)', '(rewards grow for 7 days if you visit daily)', '(毎日来ると7日間報酬が増えるよ)'], ['모두 받기', 'Claim all', 'すべて受け取る'],
     ['내 닉네임', 'My nickname', 'ニックネーム'], ['✏️ 바꾸기', '✏️ Edit', '✏️ 変更'], ['✏️ 닉네임', '✏️ Nickname', '✏️ ニックネーム'], ['랭킹에 보이는 이름이에요 (10자)', 'Shown on the ranking (10 chars)', 'ランキングに表示される名前です（10文字）'],
 
     ['다음 보상은 내일 이후에 열려요', 'Next reward unlocks on a later day', '次の報酬は明日以降に開きます'], ['베타 보상 받기', 'Claim beta rewards', 'ベータ報酬を受け取る'],
