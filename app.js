@@ -96,7 +96,8 @@
     if (!bar) { bar = document.createElement('div'); bar.id = 'adbar'; app.appendChild(bar); }
     document.body.classList.add('ad-on');
     if (BN.shown) return; BN.shown = true;
-    try { await A.showBanner({ adId: BN.unit, adSize: 'BANNER', position: 'BOTTOM_CENTER', margin: safeBottom(), isTesting: AD.test }); } catch (e) { BN.shown = false; }
+    // margin 0: 플러그인이 시스템 내비게이션 바 높이를 스스로 더한다(우리가 더하면 두 번 올라가 탭과 겹침, 0.16~0.18 버그)
+    try { await A.showBanner({ adId: BN.unit, adSize: 'BANNER', position: 'BOTTOM_CENTER', margin: 0, isTesting: AD.test }); } catch (e) { BN.shown = false; }
     if (!BN.want) bannerShow(false);
   }
   // 집중 화면(더비·보스)에서는 false 로 숨기고, 끝나면 true 로 다시 보인다
