@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const H = window.HR;
-  const VERSION = 'v0.16 베타';
+  const VERSION = 'v0.16.1 베타';
   const SAVE_KEY = 'hrk_save_v1';
   const fmt = H.fmt;
   const $ = (id) => document.getElementById(id);
@@ -2099,7 +2099,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     const wk = H.weekKey(), distm = Math.min(999999999, Math.round(best));
     const body = { fields: { name: { stringValue: st.nick }, hr: { integerValue: String(hr) }, distm: { integerValue: String(distm) }, score: { integerValue: String(H.derbyScore(hr, distm)) }, ts: { timestampValue: new Date().toISOString() } } };
     const res = await fetch(`${FSR}/hrk_rank/${wk}/scores/${st.devId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    return res.ok || res.status === 403; // 403 = 이번 주 기록이 더 높음
+    return res.ok ? 'ok' : res.status === 403 ? 'lower' : 'fail'; // 403 = 이번 주 기록이 더 높음
   }
   async function loadRank() {
     const wk = H.weekKey();
@@ -2131,20 +2131,22 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     track('derby_end', { hr: D.hr, ranked: D.ranked ? 1 : 0 });
     openModal(`<h2>⚾ 홈런 더비 결과</h2><div class="res" style="color:#ffd84a">홈런 ${D.hr} / ${H.DERBY_N}</div><p>가장 멀리: ${H.fmtDist(D.best)}</p>
       ${rew ? `<p>보상 ◆ ${rew.gems} · ₩ ${fmt(rew.coins)}</p>` : '<p class="small">연습 기록은 랭킹에 올라가지 않아요</p>'}${rew && !rew.bat && !H.hasLimited(st, 'derby') ? `<p class="small">랭킹 도전에서 ${H.DERBY_BAT_HR}개 이상 치면 한정 방망이!</p>` : ''}
-      ${D.ranked ? `<input id="nickIn" maxlength="10" placeholder="랭킹 닉네임 (10자)" value="${esc(st.nick || '')}" style="width:100%;margin:8px 0;border-radius:10px;border:2px solid #3d74b3;background:#0a1d36;color:#fff;font-family:inherit;font-size:18px;text-align:center;padding:8px">` : ''}
-      <div class="mbtns"><button class="btn gray" id="toLobby">더비 대기실로</button>${D.ranked ? '<button class="btn" id="sendRank">랭킹 등록</button>' : '<button class="btn blue" id="againPr">한 번 더 연습</button>'}</div>${D.ranked && H.derbyCanRank(st) ? `<button class="btn blue" id="againRk" style="width:100%;margin-top:8px">🎟 한 번 더 도전 (남은 도전권 ${H.derbyLeft(st)}장)</button>` : ''}`);
+      ${D.ranked ? `<p class="small" id="rkStat" style="color:#9fd0ff">🏆 랭킹 등록 중...</p>` : ''}
+      <div class="mbtns"><button class="btn gray" id="toLobby">더비 대기실로</button>${D.ranked ? '<button class="btn" id="sendRank" style="display:none">다시 등록</button>' : '<button class="btn blue" id="againPr">한 번 더 연습</button>'}</div>${D.ranked && H.derbyCanRank(st) ? `<button class="btn blue" id="againRk" style="width:100%;margin-top:8px">🎟 한 번 더 도전 (남은 도전권 ${H.derbyLeft(st)}장)</button>` : ''}`);
     $('toLobby').onclick = () => { closeModal(); openLobby(); };
     const ap = $('againPr'); if (ap) ap.onclick = () => { closeModal(); startDerby(false); };
     const ar = $('againRk'); if (ar) ar.onclick = () => { closeModal(); startDerby(true); };
-    const sr = $('sendRank');
-    if (sr) sr.onclick = async () => {
-      const nk = ($('nickIn').value || '').trim().slice(0, 10);
-      if (!nk) { toast('닉네임을 입력해 주세요'); return; }
-      st.nick = nk; save(); sr.disabled = true;
-      const ok = await submitRank(D.hr, D.best).catch(() => false);
-      toast(ok ? '랭킹에 등록했어요!' : '등록하지 못했어요. 잠시 후 다시 해주세요');
-      closeModal(); openLobby();
+    // 랭킹 도전은 끝나자마자 자동 등록 (닉네임은 대기실에서 바꿈). 실패하면 '다시 등록' 버튼
+    const sendRk = async () => {
+      const el = $('rkStat'), sr = $('sendRank'); if (sr) sr.style.display = 'none';
+      if (el) el.textContent = '🏆 랭킹 등록 중...';
+      const r = await submitRank(D.hr, D.best).catch(() => 'fail');
+      const el2 = $('rkStat'); if (!el2) return;
+      if (r === 'ok') { el2.innerHTML = '🏆 <b data-notr>' + esc(st.nick || '') + '</b> 이름으로 이번 주 랭킹에 등록했어요'; el2.style.color = '#4cd97b'; track('rank_auto', { hr: D.hr }); }
+      else if (r === 'lower') { el2.textContent = '🏆 이번 주 더 좋은 기록이 이미 랭킹에 있어요'; el2.style.color = '#ffd84a'; }
+      else { el2.textContent = '랭킹 등록에 실패했어요. 다시 눌러 주세요'; el2.style.color = '#ff9a6a'; const b = $('sendRank'); if (b) { b.style.display = ''; b.onclick = sendRk; } }
     };
+    if (D.ranked && D.hr > 0) sendRk(); else if (D.ranked) { const el = $('rkStat'); if (el) el.textContent = '홈런을 1개 이상 치면 랭킹에 올라가요'; }
     if (rew && rew.bat) { track('limited', { sp: 'derby' }); queueModal(() => revealModal(rew.bat, '🏆 한정 방망이 획득!')); }
     updateHUD(); markDirty();
   }

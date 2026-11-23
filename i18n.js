@@ -293,6 +293,8 @@
     ['📺 광고 보고 2배로 받기', '📺 Watch ad for 2x', '📺 広告を見て2倍受け取る'], ['📺 광고 보고 한 번 더 열기', '📺 Watch ad to open one more', '📺 広告を見てもう1回開ける'], ['한 번 더 오픈!', 'One more!', 'もう1回オープン！'],
     ['📺 광고 보고 명예 +50%', '📺 Watch ad for +50% honor', '📺 広告を見て名誉+50%'], ['🌟 황금 공을 잡았다!', '🌟 You caught the golden ball!', '🌟 ゴールデンボールをキャッチ！'], ['광고를 보면 코인 10분치를 바로 받아요', 'Watch an ad to get 10 minutes of coins now', '広告を見るとコイン10分ぶんをすぐもらえる'],
     ['괜찮아요', 'No thanks', '大丈夫です'], ['📺 광고 보고 받기', '📺 Watch ad to claim', '📺 広告を見て受け取る'],
+    ['🏆 랭킹 등록 중...', '🏆 Posting to the ranking...', '🏆 ランキングに登録中...'], [' 이름으로 이번 주 랭킹에 등록했어요', ' is now on this week\'s ranking', ' の名前で今週のランキングに登録しました'], ['🏆 이번 주 더 좋은 기록이 이미 랭킹에 있어요', '🏆 Your better score this week is already ranked', '🏆 今週のもっといい記録がすでにランキングにあります'],
+    ['랭킹 등록에 실패했어요. 다시 눌러 주세요', 'Could not post to the ranking. Tap to retry', 'ランキング登録に失敗しました。もう一度押してください'], ['다시 등록', 'Retry', '再登録'], ['홈런을 1개 이상 치면 랭킹에 올라가요', 'Hit at least 1 homer to get on the ranking', 'ホームランを1本以上打つとランキングに載ります'],
     ['내 닉네임', 'My nickname', 'ニックネーム'], ['✏️ 바꾸기', '✏️ Edit', '✏️ 変更'], ['✏️ 닉네임', '✏️ Nickname', '✏️ ニックネーム'], ['랭킹에 보이는 이름이에요 (10자)', 'Shown on the ranking (10 chars)', 'ランキングに表示される名前です（10文字）'],
 
     ['다음 보상은 내일 이후에 열려요', 'Next reward unlocks on a later day', '次の報酬は明日以降に開きます'], ['베타 보상 받기', 'Claim beta rewards', 'ベータ報酬を受け取る'],
