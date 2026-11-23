@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const H = window.HR;
-  const VERSION = 'v0.17 베타';
+  const VERSION = 'v0.18 베타';
   const SAVE_KEY = 'hrk_save_v1';
   const fmt = H.fmt;
   const $ = (id) => document.getElementById(id);
@@ -253,9 +253,10 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       : lobbyRank.length ? lobbyRank.map((r, i) => `<div class="ir ${r.id === st.devId ? 'me' : ''}"><span>${i < 3 ? ['🥇', '🥈', '🥉'][i] : (i + 1) + '.'} ${st.champ && st.champ.wk === H.prevWeekKey() && st.champ.id === r.id ? '<span title="지난주 1위">👑</span>' : ''}<span data-notr>${esc(r.name)}</span></span><b>홈런 ${r.hr} · ${H.fmtDist(r.distm)}</b></div>`).join('')
       : '<p class="small" style="text-align:center">아직 기록이 없어요. 첫 1등이 되어보세요!</p>';
     return `<div class="dtop"><h2>⚾ 홈런 더비</h2><button class="btn sm gray" id="dlBack">✕ 나가기</button></div>
-      <div class="dsub">스트라이크만 오는 10구 승부 · 도전권 하루 ${H.DERBY_FREE}장 · 이번 주 최고 기록만 랭킹에 남아요 · ${H.weekKey()} (월요일 초기화)</div>
+      <div class="dsub"><b style="color:#ffd84a">${H.derbyMode() === 'time' ? '⏱ 이번 주: 60초 타임어택 (홈런 3연속마다 +3초)' : '⚾ 이번 주: 10구 승부'}</b> · 다음 주는 ${H.derbyMode(Date.now() + 7 * 864e5) === 'time' ? '60초 타임어택' : '10구 승부'}</div>
+      <div class="dsub">스트라이크만 와요 · 도전권 하루 ${H.DERBY_FREE}장 · 이번 주 최고 기록만 랭킹에 남아요 · ${H.weekKey()} (월요일 초기화)</div>
       <div class="dsub">내 닉네임 <b style="color:#fff" data-notr>${esc(st.nick || '')}</b> <button class="btn sm gray" id="dlNick" style="margin-left:6px">✏️ 바꾸기</button></div>
-      <div class="dstat"><div>🎟 도전권<b>${left}장</b></div><div>내 최고<b>${st.derbyBest || 0}개</b></div><div>이번 주 순위<b>${me != null && me >= 0 ? me + 1 + '위' : '-'}</b></div></div>
+      <div class="dstat"><div>🎟 도전권<b>${left}장</b></div><div>내 최고<b>${(H.derbyMode() === 'time' ? st.derbyBestT : st.derbyBest) || 0}개</b></div><div>이번 주 순위<b>${me != null && me >= 0 ? me + 1 + '위' : '-'}</b></div></div>
       <div class="drank">${list}</div>
       <div class="dbtns">${can ? `<button class="btn big" id="dlRanked">🏆 랭킹 도전 (도전권 1장)</button>` : `<div class="small" style="text-align:center">오늘 도전권을 다 썼어요. 자정에 ${H.DERBY_FREE}장이 다시 생겨요</div>`}
       ${APPX.adOn() && H.derbyAdLeft(st) > 0 ? '<button class="btn big green" id="dlAd">📺 광고 보고 도전권 +1</button>' : ''}
@@ -282,20 +283,23 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   function derbyHud() {
     const D = G.derby; if (!D) return;
     $('dHr').innerHTML = D.hr + '<small> 홈런</small>';
-    $('dLeft').textContent = (H.DERBY_N - D.n) + '구 남음' + (D.ranked ? ' · 랭킹 도전' : ' · 연습');
+    $('dLeft').textContent = (D.timed ? '⏱ ' + Math.max(0, Math.ceil(D.end - nowS())) + '초' : (H.DERBY_N - D.n) + '구 남음') + (D.ranked ? ' · 랭킹 도전' : ' · 연습');
+    $('dLeft').style.color = D.timed && D.end - nowS() <= 10 ? '#ff6b6b' : '';
     $('dBest').textContent = '최장 ' + (D.best > 0 ? H.fmtDist(D.best) : '-');
-    $('dDots').innerHTML = Array.from({ length: H.DERBY_N }, (_, i) => `<i class="${i < D.res.length ? (D.res[i] ? 'hr' : 'no') : i === D.n ? 'now' : ''}"></i>`).join('');
+    $('dDots').innerHTML = D.timed ? `<i style="flex:none;width:${Math.max(0, Math.min(1, (D.end - nowS()) / H.DERBY_SEC)) * 100}%;background:${D.end - nowS() <= 10 ? '#ff6b6b' : '#ffd84a'}"></i>`
+      : Array.from({ length: H.DERBY_N }, (_, i) => `<i class="${i < D.res.length ? (D.res[i] ? 'hr' : 'no') : i === D.n ? 'now' : ''}"></i>`).join('');
   }
   function setDerbyScreen(on) { document.body.classList.toggle('derby-on', on); requestAnimationFrame(resize); }
   function startDerby(wantRanked) {
     const ranked = !!wantRanked && H.derbyUse(st);
     if (ranked) save();
     closeLobby();
-    G.mode = 'derby'; G.derby = { n: 0, hr: 0, best: 0, ranked, res: [] };
+    const timed = H.derbyMode() === 'time';
+    G.mode = 'derby'; G.derby = { n: 0, hr: 0, best: 0, ranked, res: [], timed, end: nowS() + H.DERBY_SEC + 0.8, streak: 0, tick: 0 };
     setDerbyScreen(true); derbyHud();
     st.count = { b: 0, s: 0 }; st.eyeCombo = 0;
     closeModal(); afterMove(); G.manualUntil = nowS() + 999;
-    toast(ranked ? '오늘의 랭킹 도전! 스트라이크만 와요. 10구 안에 최대한 많이!' : '연습 모드 (랭킹 반영은 하루 1번)');
+    toast(timed ? (ranked ? '60초 타임어택! 홈런 3개 연속이면 +3초' : '연습 모드 · 60초 타임어택') : ranked ? '오늘의 랭킹 도전! 스트라이크만 와요. 10구 안에 최대한 많이!' : '연습 모드 (랭킹 반영은 하루 1번)');
     track('derby_start', { ranked: ranked ? 1 : 0 });
   }
   function startBoss(i) {
@@ -312,8 +316,10 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       const D = G.derby; D.n++;
       if (o.hit) { if (o.hit.hr) D.hr++; if (o.hit.d > D.best) D.best = o.hit.d; }
       D.res.push(!!(o.hit && o.hit.hr));
-      derbyHud();
-      if (D.n >= H.DERBY_N) finishDerby();
+      if (D.timed) {
+        if (o.hit && o.hit.hr) { D.streak++; if (D.streak % H.DERBY_BONUS_N === 0 && (D.bonus || 0) < H.DERBY_BONUS_MAX) { D.bonus = (D.bonus || 0) + H.DERBY_BONUS; D.end += H.DERBY_BONUS; popText('+' + H.DERBY_BONUS + '초!', '#7fffd4', 34, true, 0.2); SFX.up(); } } else D.streak = 0;
+        derbyHud(); if (nowS() >= D.end) finishDerby();
+      } else { derbyHud(); if (D.n >= H.DERBY_N) finishDerby(); }
     } else if (G.mode === 'boss') {
       const B = G.boss;
       if (o.hit) { if (o.hit.hr) B.hr++; else { B.outs++; popText(o.hit.quality === 'weak' ? '땅볼 아웃' : '뜬공 아웃', '#ffb0b0', 26, false, 0.6); } }
@@ -570,6 +576,15 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     if (G.freeze > 0) { G.freeze -= rdt; return; }
     let dt = rdt;
     if (G.slow > 0) { G.slow -= rdt; dt = rdt * 0.3; }
+    // 60초 더비: 투구 외 연출을 빠르게, 시간이 다 되면 공이 없는 순간에 끝냄
+    const TD = G.mode === 'derby' && G.derby && G.derby.timed ? G.derby : null;
+    if (TD) {
+      if (G.phase !== 'pitch') dt *= 3.5;
+      const left = TD.end - nowS();
+      if (left <= 10 && Math.ceil(left) !== TD.tick && left > 0) { TD.tick = Math.ceil(left); SFX.click(); derbyHud(); }
+      else if (Math.floor(left * 4) !== TD.q4) { TD.q4 = Math.floor(left * 4); derbyHud(); }
+      if (left <= 0 && (G.phase === 'windup' || G.phase === 'call' || G.phase === 'reset' || G.phase === 'result')) { finishDerby(); return; }
+    }
     G.t += dt;
     const now = nowS();
     const auto = st.auto && now > G.manualUntil && G.mode !== 'derby';
@@ -847,7 +862,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     }
     if (G.mode === 'normal' || G.mode === 'derby') return;
     let txt;
-    if (G.mode === 'derby') txt = '⚾ 홈런 더비 ' + Math.min(H.DERBY_N, G.derby.n + 1) + '/' + H.DERBY_N + ' · 홈런 ' + G.derby.hr;
+    if (G.mode === 'derby') txt = G.derby.timed ? '⏱ 60초 더비 · 홈런 ' + G.derby.hr + (G.derby.streak ? ' · ' + G.derby.streak + '연속' : '') : '⚾ 홈런 더비 ' + Math.min(H.DERBY_N, G.derby.n + 1) + '/' + H.DERBY_N + ' · 홈런 ' + G.derby.hr;
     else txt = 'VS ' + H.BOSSES[G.boss.i].name + ' · 홈런 ' + G.boss.hr + '/' + H.BOSS_HR + ' · 아웃 ' + '●'.repeat(G.boss.outs) + '○'.repeat(H.BOSS_OUTS - G.boss.outs);
     ctx.font = '14px Jua'; ctx.textAlign = 'left'; const w2 = ctx.measureText(txt).width + 18;
     ctx.fillStyle = G.mode === 'boss' ? 'rgba(120,20,30,.85)' : 'rgba(20,70,140,.85)'; roundRect(8, 10, Math.min(w2, W - 112), 24, 9); ctx.fill();
@@ -1597,7 +1612,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       <div class="small">명예 1점마다 비거리·코인 +${Math.round(H.HONOR_PCT * 100)}% · 지금 x${fmt(H.honorMult(st), 2)}</div></div>
       <button class="btn ${can ? '' : 'gray'}" id="retireBtn" ${can ? '' : 'disabled'}>은퇴하기<span class="cost">${can ? '명예 +' + fmt(g) : '6구장부터'}</span></button></div>
       <div class="small" style="margin-top:6px">${can ? '더 먼 구장까지 갈수록 받는 명예가 커져요. 방망이·젬·보호권은 그대로 남아요.' : '6구장(2군 구장)이 열리면 은퇴할 수 있어요. 은퇴하면 처음부터 다시 시작하지만 명예 보너스로 훨씬 빨리 올라가요.'}</div></div>
-      <div class="h">홈런 더비 <span class="r small">10구 승부 · 주간 랭킹</span></div><div class="card"><div class="small" style="margin-bottom:6px">스트라이크만 오는 10구 동안 홈런을 최대한 많이! 오늘 도전권 ${H.derbyLeft(st)}장 · 최고 기록 ${st.derbyBest || 0}개</div>
+      <div class="h">홈런 더비 <span class="r small">${H.derbyMode() === 'time' ? '60초 타임어택' : '10구 승부'} · 주간 랭킹</span></div><div class="card"><div class="small" style="margin-bottom:6px">${H.derbyMode() === 'time' ? '이번 주는 60초 동안 홈런을 최대한 많이! 3개 연속이면 +3초.' : '이번 주는 스트라이크만 오는 10구 동안 홈런을 최대한 많이!'} 매주 방식이 바뀌어요. 오늘 도전권 ${H.derbyLeft(st)}장</div>
       <button class="btn big" id="derbyBtn">⚾ 홈런 더비 입장 🎟${H.derbyLeft(st)}</button></div>
       <div class="h">구장</div>`;
     H.STADIUMS.forEach((S, i) => {
@@ -1778,7 +1793,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     e.stopPropagation(); const D = G.derby; if (!D) return;
     confirmModal(D.ranked ? '그만하면 지금까지 기록으로 오늘의 랭킹 도전이 끝나요. 그만할까요?' : '연습을 그만할까요?', () => {
       if (!G.derby) return;
-      if (D.ranked) { D.n = H.DERBY_N; finishDerby(); } else { G.mode = 'normal'; G.derby = null; setDerbyScreen(false); openLobby(); }
+      if (D.ranked) { D.n = H.DERBY_N; D.end = 0; finishDerby(); } else { G.mode = 'normal'; G.derby = null; setDerbyScreen(false); openLobby(); }
       startPitch();
     });
   });
@@ -2148,11 +2163,11 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   }
   function derbyEndModal(D) {
     let rew = null;
-    if (D.ranked) rew = H.derbyReward(st, D.hr);
-    st.derbyBest = Math.max(st.derbyBest || 0, D.hr);
+    if (D.ranked) rew = H.derbyReward(st, D.hr, D.timed);
+    if (D.timed) st.derbyBestT = Math.max(st.derbyBestT || 0, D.hr); else st.derbyBest = Math.max(st.derbyBest || 0, D.hr);
     SFX.success(); if (D.hr >= 5) confetti();
     track('derby_end', { hr: D.hr, ranked: D.ranked ? 1 : 0 });
-    openModal(`<h2>⚾ 홈런 더비 결과</h2><div class="res" style="color:#ffd84a">홈런 ${D.hr} / ${H.DERBY_N}</div><p>가장 멀리: ${H.fmtDist(D.best)}</p>
+    openModal(`<h2>⚾ 홈런 더비 결과</h2><div class="res" style="color:#ffd84a">${D.timed ? '홈런 ' + D.hr + '개' : '홈런 ' + D.hr + ' / ' + H.DERBY_N}</div>${D.timed ? '<p class="small">⏱ 60초 타임어택</p>' : ''}<p>가장 멀리: ${H.fmtDist(D.best)}</p>
       ${rew ? `<p>보상 ◆ ${rew.gems} · ₩ ${fmt(rew.coins)}</p>` : '<p class="small">연습 기록은 랭킹에 올라가지 않아요</p>'}
       ${D.ranked ? `<p class="small" id="rkStat" style="color:#9fd0ff">🏆 랭킹 등록 중...</p>` : ''}
       <div class="mbtns"><button class="btn gray" id="toLobby">더비 대기실로</button>${D.ranked ? '<button class="btn" id="sendRank" style="display:none">다시 등록</button>' : '<button class="btn blue" id="againPr">한 번 더 연습</button>'}</div>${D.ranked && H.derbyCanRank(st) ? `<button class="btn blue" id="againRk" style="width:100%;margin-top:8px">🎟 한 번 더 도전 (남은 도전권 ${H.derbyLeft(st)}장)</button>` : ''}`);

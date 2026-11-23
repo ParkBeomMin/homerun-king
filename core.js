@@ -514,6 +514,9 @@
 
   // ---------- 홈런 더비 ----------
   const DERBY_N = 10;
+  // 주마다 번갈아: 짝수 주 = 10구 승부, 홀수 주 = 60초 타임어택 (홈런 3개 연속마다 +3초)
+  const DERBY_SEC = 60, DERBY_BONUS = 3, DERBY_BONUS_N = 3, DERBY_BONUS_MAX = 15; // 보너스 시간은 한 판 최대 +15초
+  function derbyMode(now) { const w = +weekKey(now).split('-W')[1]; return w % 2 ? 'time' : 'classic'; }
   function weekKey(now) {
     const d = new Date((now || Date.now()) + 9 * 3600e3); // KST
     const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
@@ -532,7 +535,7 @@
   function derbyAddAd(st, now) { if (derbyAdLeft(st, now) <= 0) return false; derbyT(st, now).ad++; return true; }
   function derbyScore(hr, distm) { return hr * 1e9 + Math.min(999999999, Math.max(0, Math.round(distm))); }
   const DERBY_BAT_HR = 7;
-  function derbyReward(st, hr) { const gems = hr * 3; const c = Math.max(50, Math.floor(expectedCPS(st, 150) * hr * 60)); st.gems += gems; st.coins += c; return { gems, coins: c, bat: null }; }
+  function derbyReward(st, hr, timed) { const gems = timed ? Math.min(30, hr) : hr * 3; const c = Math.max(50, Math.floor(expectedCPS(st, 150) * hr * (timed ? 30 : 60))); st.gems += gems; st.coins += c; return { gems, coins: c, bat: null }; }
   // 주간 랭킹 보상: 새 주에 처음 켤 때 지난주 순위로 한 번 지급 (1위는 더비 챔피언 배트, 이미 있으면 ◆1,000)
   const WEEK_REW = [
     { to: 1, gems: 500, sec: 7200, bat: true }, { to: 2, gems: 300, sec: 3600 }, { to: 3, gems: 200, sec: 3600 },
@@ -593,6 +596,8 @@
     { id: 'boss10', name: '보스 10명 격파', test: (s) => Object.keys(s.bossWin || {}).length >= 10, gems: 300 },
     { id: 'derby5', name: '홈런 더비 5개 이상', test: (s) => (s.derbyBest || 0) >= 5, gems: 50 },
     { id: 'derby10', name: '홈런 더비 퍼펙트 (10개)', test: (s) => (s.derbyBest || 0) >= 10, gems: 300 },
+    { id: 'derbyT15', name: '60초 더비 홈런 15개 이상', test: (s) => (s.derbyBestT || 0) >= 15, gems: 50 },
+    { id: 'derbyT30', name: '60초 더비 홈런 30개', test: (s) => (s.derbyBestT || 0) >= 30, gems: 300 },
     { id: 'dex15', name: '방망이 도감 완성', test: (s) => Object.keys(s.dex || {}).length >= 15, gems: 500 },
   ];
   function daily(st, now) {
@@ -679,7 +684,7 @@
     equipped, fenceOf, coinMultOf, resistOf, honorMult, canRetire, honorGain, retire, fmtDist, OUT_START, RETIRE_AT, HONOR_PCT, perfectWindow, goodWindow, weakWindow, autoPerfect, rollAutoQuality, specialChance,
     hitResult, cycleTime, takeTime, expectedCPS, simAuto, genPitch, swingOutcome, autoDecide, hitBonus, callPitch, resetCount, eyeOf, eyeRate, ballChance, edgeDist, PITCH_T, homerunRate, tryEnhance, removeBat, bestBat, woodPrice, normalBoxPrice, buy,
     mergeCandidates, merge, sell, applyHit, moveStadium, offlineReward, fmt,
-    PITCH_TYPES, pitchTypesFor, BETA_REW, betaTick, betaCan, claimBeta, AD_LIMIT, adLeft, adUse, LIMITED, LIMITED_KEYS, DEX_TOTAL, DERBY_BAT_HR, WEEK_REW, prevWeekKey, weekRewOf, grantWeek, hasT, batKey, traitName, traitShort, traitDesc, hasLimited, grantLimited, seasonOn, dexNormal, markDex, dexRows, dexCount, dexMult, dexCoin, isWeekend, BOSSES, BOSS_HR, BOSS_OUTS, PITCHERS, pitcherOf, avgKmh, bossOpen, bossReward, winBoss, DERBY_N, weekKey, DERBY_FREE, DERBY_AD, derbyLeft, derbyUse, derbyAdLeft, derbyAddAd, derbyCanRank, derbyScore, derbyReward,
+    PITCH_TYPES, pitchTypesFor, BETA_REW, betaTick, betaCan, claimBeta, AD_LIMIT, adLeft, adUse, LIMITED, LIMITED_KEYS, DEX_TOTAL, DERBY_BAT_HR, DERBY_SEC, DERBY_BONUS, DERBY_BONUS_N, DERBY_BONUS_MAX, derbyMode, WEEK_REW, prevWeekKey, weekRewOf, grantWeek, hasT, batKey, traitName, traitShort, traitDesc, hasLimited, grantLimited, seasonOn, dexNormal, markDex, dexRows, dexCount, dexMult, dexCoin, isWeekend, BOSSES, BOSS_HR, BOSS_OUTS, PITCHERS, pitcherOf, avgKmh, bossOpen, bossReward, winBoss, DERBY_N, weekKey, DERBY_FREE, DERBY_AD, derbyLeft, derbyUse, derbyAdLeft, derbyAddAd, derbyCanRank, derbyScore, derbyReward,
     todayKey, ATT, DAILY, DAILY_ALL, ACH, daily, bump, rewardText, grant, attCan, attDay, claimAtt, dailyDone, claimDaily, claimDailyAll, achReady, claimAch, claimableCount,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

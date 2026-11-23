@@ -300,6 +300,13 @@
     ['코인 2시간치', '2 hours of coins', 'コイン2時間ぶん'], ['코인 1시간치', '1 hour of coins', 'コイン1時間ぶん'], ['코인 30분치', '30 min of coins', 'コイン30分ぶん'], ['코인 10분치', '10 min of coins', 'コイン10分ぶん'],
     ['🏆 지난주 홈런 더비 결과', '🏆 Last week\'s Home Run Derby', '🏆 先週のホームランダービー結果'], ['이번 주 랭킹에서 닉네임 옆에 👑가 붙어요', 'You get a 👑 next to your name in this week\'s ranking', '今週のランキングでニックネームの横に👑がつきます'], ['지난주 1위', 'Last week #1', '先週1位'],
     ['(월요일 초기화)', '(resets Monday)', '（月曜リセット）'],
+    ['⏱ 이번 주: 60초 타임어택 (홈런 3연속마다 +3초)', '⏱ This week: 60-second time attack (+3s for every 3 homers in a row)', '⏱ 今週：60秒タイムアタック（3連続ホームランごとに+3秒）'], ['⚾ 이번 주: 10구 승부', '⚾ This week: 10-pitch round', '⚾ 今週：10球勝負'],
+    ['다음 주는', 'Next week:', '来週は'], ['60초 타임어택', '60-second time attack', '60秒タイムアタック'], ['10구 승부', '10-pitch round', '10球勝負'], ['스트라이크만 와요', 'Strikes only', 'ストライクのみ'],
+    ['이번 주는 60초 동안 홈런을 최대한 많이! 3개 연속이면 +3초.', 'This week: as many homers as you can in 60 seconds! 3 in a row = +3s.', '今週は60秒でホームランをできるだけ多く！3連続で+3秒。'],
+    ['이번 주는 스트라이크만 오는 10구 동안 홈런을 최대한 많이!', 'This week: as many homers as you can in 10 strike-only pitches!', '今週はストライクだけの10球でホームランをできるだけ多く！'], ['매주 방식이 바뀌어요.', 'The format changes every week.', '毎週ルールが変わります。'],
+    ['60초 타임어택! 홈런 3개 연속이면 +3초', '60-second time attack! 3 homers in a row = +3s', '60秒タイムアタック！3連続ホームランで+3秒'], ['연습 모드 · 60초 타임어택', 'Practice · 60-second time attack', '練習モード・60秒タイムアタック'],
+    ['⏱ 60초 더비', '⏱ 60s Derby', '⏱ 60秒ダービー'], ['연속', ' in a row', '連続'], ['⏱ 60초 타임어택', '⏱ 60-second time attack', '⏱ 60秒タイムアタック'], ['60초 더비 홈런 15개 이상', '15+ homers in a 60s Derby', '60秒ダービーでホームラン15本以上'], ['60초 더비 홈런 30개', '30 homers in a 60s Derby', '60秒ダービーでホームラン30本'],
+    ['초', 's', '秒'], ['오늘 도전권', "Today's tickets:", '今日のチケット'],
     ['내 닉네임', 'My nickname', 'ニックネーム'], ['✏️ 바꾸기', '✏️ Edit', '✏️ 変更'], ['✏️ 닉네임', '✏️ Nickname', '✏️ ニックネーム'], ['랭킹에 보이는 이름이에요 (10자)', 'Shown on the ranking (10 chars)', 'ランキングに表示される名前です（10文字）'],
 
     ['다음 보상은 내일 이후에 열려요', 'Next reward unlocks on a later day', '次の報酬は明日以降に開きます'], ['베타 보상 받기', 'Claim beta rewards', 'ベータ報酬を受け取る'],
