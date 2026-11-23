@@ -266,7 +266,7 @@
     ['테스트에 참여해 주셔서 고마워요! 앱을 연 날이 쌓일 때마다 보상을 드려요. 받은 보상은 정식 출시 뒤에도 그대로 남아요.', 'Thanks for testing! Rewards unlock as your days in the app add up. Everything you get stays after the official launch.', 'テストに参加してくれてありがとう！アプリを開いた日数に応じて報酬がもらえます。受け取った報酬は正式リリース後もそのまま残ります。'],
     ['🧪 베타 테스터 감사 선물!', '🧪 Beta tester thank-you gift!', '🧪 ベータテスターへの感謝プレゼント！'],
     ['🧪 베타 테스터 보상', '🧪 Beta Tester Rewards', '🧪 ベータテスター報酬'],
-    ['안드로이드 앱 베타 테스트 7일 참여', 'Play the Android app beta for 7 days', 'Androidアプリのベータテストに7日参加'], ['안드로이드 앱 베타 테스트 참여', 'Join the Android app beta test', 'Androidアプリのベータテストに参加'],
+    ['안드로이드 앱 베타 테스트 14일 참여', 'Play the Android app beta for 14 days', 'Androidアプリのベータテストに14日参加'], ['안드로이드 앱 베타 테스트 참여', 'Join the Android app beta test', 'Androidアプリのベータテストに参加'],
    
     ['개인정보처리방침', 'Privacy Policy', 'プライバシーポリシー'],
     ['스트라이크만 오는 10구 승부 · 하루 1번 랭킹 도전 ·', '10 strike-only pitches · 1 ranked try a day ·', 'ストライクだけの10球勝負 · ランキング挑戦は1日1回 ·'],
@@ -295,7 +295,7 @@
     ['괜찮아요', 'No thanks', '大丈夫です'], ['📺 광고 보고 받기', '📺 Watch ad to claim', '📺 広告を見て受け取る'],
     ['🏆 랭킹 등록 중...', '🏆 Posting to the ranking...', '🏆 ランキングに登録中...'], [' 이름으로 이번 주 랭킹에 등록했어요', ' is now on this week\'s ranking', ' の名前で今週のランキングに登録しました'], ['🏆 이번 주 더 좋은 기록이 이미 랭킹에 있어요', '🏆 Your better score this week is already ranked', '🏆 今週のもっといい記録がすでにランキングにあります'],
     ['랭킹 등록에 실패했어요. 다시 눌러 주세요', 'Could not post to the ranking. Tap to retry', 'ランキング登録に失敗しました。もう一度押してください'], ['다시 등록', 'Retry', '再登録'], ['홈런을 1개 이상 치면 랭킹에 올라가요', 'Hit at least 1 homer to get on the ranking', 'ホームランを1本以上打つとランキングに載ります'],
-    ["7일째엔 한정 방망이 '베타 개척자 배트'!", "Day 7: limited bat 'Beta Pioneer Bat'!", "7日目は限定バット「ベータ開拓者バット」！"], ['🧪 한정 배트', '🧪 Limited bat', '🧪 限定バット'], ['베타 개척자 배트', 'Beta Pioneer Bat', 'ベータ開拓者バット'],
+    ["14일째엔 한정 방망이 '베타 개척자 배트'!", "Day 14: limited bat 'Beta Pioneer Bat'!", "14日目は限定バット「ベータ開拓者バット」！"], ['🧪 한정 배트', '🧪 Limited bat', '🧪 限定バット'], ['베타 개척자 배트', 'Beta Pioneer Bat', 'ベータ開拓者バット'],
     ['내 닉네임', 'My nickname', 'ニックネーム'], ['✏️ 바꾸기', '✏️ Edit', '✏️ 変更'], ['✏️ 닉네임', '✏️ Nickname', '✏️ ニックネーム'], ['랭킹에 보이는 이름이에요 (10자)', 'Shown on the ranking (10 chars)', 'ランキングに表示される名前です（10文字）'],
 
     ['다음 보상은 내일 이후에 열려요', 'Next reward unlocks on a later day', '次の報酬は明日以降に開きます'], ['베타 보상 받기', 'Claim beta rewards', 'ベータ報酬を受け取る'],
