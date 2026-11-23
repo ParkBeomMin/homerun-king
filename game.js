@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const H = window.HR;
-  const VERSION = 'v0.15.3 베타';
+  const VERSION = 'v0.16 베타';
   const SAVE_KEY = 'hrk_save_v1';
   const fmt = H.fmt;
   const $ = (id) => document.getElementById(id);
@@ -1652,14 +1652,14 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       h += `<div class="attd ${cls}"><b>${i + 1}일</b><span>${H.rewardText(r)}</span>${i < day ? '<i>✓</i>' : ''}</div>`;
       void done;
     });
-    h += `</div><button class="btn big" data-att ${can ? '' : 'disabled'}>${can ? (day + 1) + '일차 보상 받기' : '오늘 출석 완료! 내일 또 와요'}</button></div>`;
+    h += `</div><button class="btn big" data-att ${can ? '' : 'disabled'}>${can ? (day + 1) + '일차 보상 받기' : '오늘 출석 완료! 내일 또 와요'}</button>${can && att2On() ? '<button class="btn big green" data-att2 style="width:100%;margin-top:6px">📺 광고 보고 2배로 받기</button>' : ''}</div>`;
     h += `<button class="btn big blue" id="codeBtn" style="margin-bottom:8px">🎟 이벤트 코드 입력</button>`;
     h += `<div class="h">일일 미션 <span class="r small">자정에 초기화</span></div>`;
     for (const m of H.DAILY) {
       const c = Math.min(m.goal, d.c[m.id] || 0), got = d.got[m.id], ok = c >= m.goal;
       h += `<div class="card mis"><div style="flex:1;min-width:0"><div>${m.name}</div><div class="bar" style="margin-top:5px"><i style="width:${c / m.goal * 100}%"></i></div>
         <div class="small" style="margin-top:3px">${c}/${m.goal} · 보상 ${H.rewardText(m.rew)}</div></div>
-        <button class="btn sm ${got ? 'gray' : ok ? 'green' : 'gray'}" data-daily="${m.id}" ${!got && ok ? '' : 'disabled'}>${got ? '완료' : '받기'}</button></div>`;
+        <div style="display:flex;flex-direction:column;gap:4px"><button class="btn sm ${got ? 'gray' : ok ? 'green' : 'gray'}" data-daily="${m.id}" ${!got && ok ? '' : 'disabled'}>${got ? '완료' : '받기'}</button>${!got && ok && APPX.adOn() && H.adLeft(st, 'mis2') > 0 ? `<button class="btn sm blue" data-mis2="${m.id}">📺 x2</button>` : ''}</div></div>`;
     }
     const allGot = H.DAILY.every((m) => d.got[m.id]);
     h += `<div class="card mis"><div style="flex:1">🎁 미션 모두 완료 보너스<div class="small">보상 ${H.rewardText(H.DAILY_ALL)}</div></div>
@@ -1716,7 +1716,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       const r = H.buy(st, d.buy);
       if (!r.ok) { toast(r.reason === 'full' ? '방망이 가방이 가득 찼어요. 판매나 합성을 해주세요' : '재화가 부족해요'); return; }
       track('buy', { kind: d.buy }); if (d.buy === 'premium' || d.buy === 'normal') st.boxOpens = (st.boxOpens || 0) + 1;
-      if (r.bat) { SFX.box(); revealModal(r.bat, d.buy === 'wood' ? '구매 완료' : '상자 오픈!'); }
+      if (r.bat) { SFX.box(); revealModal(r.bat, d.buy === 'wood' ? '구매 완료' : '상자 오픈!', d.buy === 'premium'); }
       else { SFX.up(); toast('강화 보호권 +1'); }
       updateHUD(); return renderPanel();
     }
@@ -1735,7 +1735,9 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     if (t.id === 'shareBtn') return shareCard();
     if (t.id === 'expBtn') return exportModal();
     if (t.id === 'impBtn') return importModal();
-    if (d.att != null) { const r = H.claimAtt(st); if (r) { SFX.box(); vib(30); track('att_claim', { n: st.att.n }); rewardToast(r); if (r.bat) { track('limited', { sp: 'season' }); queueModal(() => revealModal(r.bat, '🎉 한정 방망이 획득!')); } } updateHUD(); return renderPanel(); }
+    if (d.att != null) return attClaim(false);
+    if (d.att2 != null) return APPX.showReward('att_x2', () => attClaim(true), toast);
+    if (d.mis2) { const id = d.mis2; return APPX.showReward('mission_x2', () => { const m = H.DAILY.find((x) => x.id === id), r = H.claimDaily(st, id); if (!r) return; H.adUse(st, 'mis2'); const r2 = H.grant(st, m.rew); SFX.up(); track('mission_claim', { id, x2: 1 }); toast(r.text + ' x2 받았어요'); [r.bat, r2.bat].filter(Boolean).forEach((b) => queueModal(() => revealModal(b, '고급 상자 오픈!'))); save(); updateHUD(); renderPanel(); }, toast); }
     if (d.daily) { const r = H.claimDaily(st, d.daily); if (r) { SFX.up(); track('mission_claim', { id: d.daily }); rewardToast(r); } updateHUD(); return renderPanel(); }
     if (d.dall != null) { const r = H.claimDailyAll(st); if (r) { SFX.success(); confetti(); track('mission_all', {}); rewardToast(r); } updateHUD(); return renderPanel(); }
     if (d.ach) { const r = H.claimAch(st, d.ach); if (r) { SFX.success(); track('ach_claim', { id: d.ach }); rewardToast(r); } updateHUD(); return renderPanel(); }
@@ -1782,7 +1784,37 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     st.auto = !st.auto; audio(); SFX.click(); syncAuto();
   });
   function syncAuto() { const b = $('autoBtn'); b.classList.toggle('on', st.auto); b.textContent = '자동 타격 ' + (st.auto ? 'ON' : 'OFF'); }
-  $('fieldWrap').addEventListener('pointerdown', (e) => { if (e.target.closest('#guide')) return; onTap(); });
+  $('fieldWrap').addEventListener('pointerdown', (e) => { if (e.target.closest('#guide') || e.target.closest('#goldBall')) return; onTap(); });
+
+  // ---------- 앱: 황금 공 (경기 중 가끔 날아가는 공, 탭하면 광고 보고 코인 10분치) ----------
+  const GOLD_SEC = 600; let goldNext = Date.now() + 90000, goldEl = null;
+  function goldOk() {
+    return APPX.adOn() && H.adLeft(st, 'gold') > 0 && G.mode === 'normal' && !lobby.classList.contains('on') && modal.classList.contains('hidden')
+      && $('title').style.display === 'none' && !document.hidden && (st.tut == null || st.tut >= TUT.length);
+  }
+  function goldSpawn() {
+    if (goldEl) goldEl.remove();
+    const el = document.createElement('div'); el.id = 'goldBall';
+    el.style.top = (18 + Math.random() * 30) + '%';
+    el.innerHTML = '<i></i><b>✨</b>';
+    el.addEventListener('pointerdown', (e) => { e.stopPropagation(); e.preventDefault(); el.remove(); goldEl = null; goldModal(); });
+    el.addEventListener('animationend', () => { el.remove(); if (goldEl === el) goldEl = null; });
+    $('fieldWrap').appendChild(el); goldEl = el; SFX.coin(); track('gold_spawn', {});
+  }
+  function goldModal() {
+    const c = Math.max(100, Math.floor(H.expectedCPS(st, 150) * GOLD_SEC));
+    openModal(`<h2>🌟 황금 공을 잡았다!</h2><div class="res" style="color:#ffd84a">₩ ${fmt(c)}</div><p>광고를 보면 코인 10분치를 바로 받아요<br><span class="small">오늘 ${H.adLeft(st, 'gold')}/${H.AD_LIMIT.gold}</span></p>
+      <div class="mbtns"><button class="btn gray" data-close>괜찮아요</button><button class="btn green" id="goldAd">📺 광고 보고 받기</button></div>`);
+    $('goldAd').onclick = () => APPX.showReward('gold_ball', () => {
+      H.adUse(st, 'gold'); const r = H.grant(st, { t: 'coins', sec: GOLD_SEC }); closeModal(); SFX.coin(); vib(30); toast(r.text + ' 받았어요'); track('gold_claim', {}); save(); updateHUD(); renderPanel();
+    }, toast);
+  }
+  setInterval(() => {
+    // 앱 배너: 더비·보스전·더비 대기실에서는 숨김
+    if (APPX.bannerShow) APPX.bannerShow(G.mode === 'normal' && !lobby.classList.contains('on'));
+    if (!goldEl && Date.now() >= goldNext && goldOk()) { goldSpawn(); goldNext = Date.now() + (180 + Math.random() * 120) * 1000; }
+    if (goldEl && G.mode !== 'normal') { goldEl.remove(); goldEl = null; }
+  }, 1000);
   $('guideSkip').addEventListener('click', () => { st.tut = 99; $('guide').style.display = 'none'; clearGuideMarks(); toast('튜토리얼을 건너뛰었어요'); });
   // PC: 스페이스바로 스윙
   window.addEventListener('keydown', (e) => { if (e.code === 'Space' && modal.classList.contains('hidden')) { e.preventDefault(); onTap(); } });
@@ -1806,12 +1838,21 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     $('mYes').onclick = () => { closeModal(); yes(); };
   }
 
-  function revealModal(b, title) {
+  function boxAgain() {
+    if (H.adLeft(st, 'boxagain') <= 0 || st.bats.length >= H.INV_MAX) return;
+    APPX.showReward('box_again', () => {
+      H.adUse(st, 'boxagain'); const b = H.newBat(H.rollGrade(H.BOX.premium.odds, Math.random), null, Math.random);
+      st.bats.push(b); H.markDex(st, b); if (b.g >= 4) st.gotLegend = true; st.boxOpens = (st.boxOpens || 0) + 1;
+      track('box_again', { g: b.g }); SFX.box(); closeModal(); revealModal(b, '한 번 더 오픈!', true); save(); updateHUD(); renderPanel();
+    }, toast);
+  }
+  function revealModal(b, title, again) {
     const g = H.GRADES[b.g];
     const better = H.batPower(b) > H.batPower(H.equipped(st));
     openModal(`<h2>${title}</h2><div class="bimg shake" id="rvImg" style="opacity:.3;filter:brightness(0)">${batSVG(b, b.g >= 3 || !!b.sp)}</div>
       <div id="rvTxt" style="visibility:hidden"><div class="res" style="color:${b.sp ? '#ff8ab5' : g.color}">${b.sp ? '한정 방망이!' : g.name + ' 등급!'}</div><p>${H.batName(b)} · ${H.traitName(b)}</p><p class="small">파워 x${fmt(H.batPower(b), 2)} · ${H.traitDesc(b)}</p>
-      <div class="mbtns">${better ? `<button class="btn green" id="rvEq">바로 장착</button>` : ''}<button class="btn gray" data-close>확인</button></div></div>`);
+      <div class="mbtns">${better ? `<button class="btn green" id="rvEq">바로 장착</button>` : ''}<button class="btn gray" data-close>확인</button></div>${again && APPX.adOn() && H.adLeft(st, 'boxagain') > 0 && st.bats.length < H.INV_MAX ? `<button class="btn big blue" id="rvAgain" style="width:100%;margin-top:6px">📺 광고 보고 한 번 더 열기 ${H.adLeft(st, 'boxagain')}/${H.AD_LIMIT.boxagain}</button>` : ''}</div>`);
+    const rva = $('rvAgain'); if (rva) rva.onclick = boxAgain;
     setTimeout(() => {
       const im = $('rvImg'); if (!im) return;
       im.classList.remove('shake'); im.style.opacity = 1; im.style.filter = 'none'; im.style.transition = 'all .3s';
@@ -1904,8 +1945,21 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     const day = H.attDay(st), r = H.ATT[day];
     openModal(`<h2>📅 출석 ${day + 1}일차</h2><p>매일 들어오면 7일 동안 보상이 커져요. 7일차엔 고급 상자!</p>
       <div class="attrow" style="margin:10px 0">${H.ATT.map((x, i) => `<div class="attd ${i < day ? 'got' : i === day ? 'now' : ''}"><b>${i + 1}일</b><span>${H.rewardText(x)}</span>${i < day ? '<i>✓</i>' : ''}</div>`).join('')}</div>
-      <div class="mbtns"><button class="btn big" id="attGet">${H.rewardText(r)} 받기</button></div>`);
-    $('attGet').onclick = () => { const g = H.claimAtt(st); closeModal(); if (g) { SFX.box(); vib(30); track('att_claim', { n: st.att.n }); rewardToast(g); if (g.bat) { track('limited', { sp: 'season' }); queueModal(() => revealModal(g.bat, '🎉 한정 방망이 획득!')); } } updateHUD(); renderPanel(); };
+      <div class="mbtns"><button class="btn big" id="attGet">${H.rewardText(r)} 받기</button></div>${att2On() ? '<button class="btn big green" id="attAd" style="width:100%;margin-top:6px">📺 광고 보고 2배로 받기</button>' : ''}`);
+    $('attGet').onclick = () => { closeModal(); attClaim(false); };
+    const aa = $('attAd'); if (aa) aa.onclick = () => APPX.showReward('att_x2', () => { closeModal(); attClaim(true); }, toast);
+  }
+  function att2On() { return APPX.adOn() && H.adLeft(st, 'att2') > 0; }
+  // 출석 받기 (double: 광고 보고 같은 보상 한 번 더)
+  function attClaim(double) {
+    if (!H.attCan(st)) return;
+    const day = H.attDay(st), g = H.claimAtt(st); if (!g) return;
+    SFX.box(); vib(30); track('att_claim', { n: st.att.n, x2: double ? 1 : 0 });
+    let g2 = null; if (double) { H.adUse(st, 'att2'); g2 = H.grant(st, H.ATT[day]); }
+    toast(g.text + (g2 ? ' x2' : '') + ' 받았어요');
+    [g.bat, g2 && g2.bat].filter(Boolean).forEach((b) => queueModal(() => revealModal(b, '고급 상자 오픈!')));
+    if (g.bat && g.bat.sp) track('limited', { sp: 'season' });
+    save(); updateHUD(); renderPanel();
   }
 
   // ---------- 기록 공유 카드 ----------
@@ -2165,10 +2219,12 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     openModal(`<h2>🎖 은퇴할까요?</h2><p>명예 <b style="color:#ffd84a">+${fmt(g)}</b> → 총 ${fmt((st.honor || 0) + g)}<br>비거리·코인 x${fmt(H.honorMult(st), 2)} → x${fmt(1 + H.HONOR_PCT * ((st.honor || 0) + g), 2)}</p>
       <div class="ir"><span>초기화</span><b>코인, 타자 능력치, 구장 진행</b></div>
       <div class="ir"><span>그대로 유지</span><b>방망이, 젬, 보호권, 기록</b></div>
-      <div class="mbtns"><button class="btn gray" data-close>조금 더 할게요</button><button class="btn" id="doRetire">은퇴식 하기</button></div>`);
-    $('doRetire').onclick = () => {
-      const got = H.retire(st);
-      track('retire', { honor: got, n: st.retires });
+      <div class="mbtns"><button class="btn gray" data-close>조금 더 할게요</button><button class="btn" id="doRetire">은퇴식 하기</button></div>${APPX.adOn() ? `<button class="btn big green" id="adRetire" style="width:100%;margin-top:6px">📺 광고 보고 명예 +50% (+${fmt(Math.round(g * 1.5))})</button>` : ''}`);
+    $('doRetire').onclick = () => doRetire(1);
+    const ar = $('adRetire'); if (ar) ar.onclick = () => APPX.showReward('retire_x15', () => doRetire(1.5), toast);
+    function doRetire(mult) {
+      const got = H.retire(st, mult);
+      track('retire', { honor: got, n: st.retires, ad: mult > 1 ? 1 : 0 });
       closeModal(); afterMove(); save();
       SFX.success(); confetti(); vib([40, 40, 40, 40, 120]);
       openModal(`<h2>🎉 은퇴식</h2><p>${st.retires}번째 시즌을 마쳤어요.</p><div class="res" style="color:#ffd84a">명예 +${fmt(got)}</div>

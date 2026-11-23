@@ -149,8 +149,8 @@
   function canRetire(st) { return st.maxStadium >= RETIRE_AT; }
   // 도달한 구장으로 명예 결정 (6구장 3점, 한 구장 오를 때마다 1.8배, 마지막 단계 클리어 시 2배)
   function honorGain(st) { if (!canRetire(st)) return 0; let g = Math.round(3 * Math.pow(1.8, st.maxStadium - RETIRE_AT)); if (st.cleared.includes(STADIUMS.length - 1)) g *= 2; return g; }
-  function retire(st) {
-    const g = honorGain(st); if (!g) return 0;
+  function retire(st, mult) {
+    const g = Math.round(honorGain(st) * (mult || 1)); if (!g) return 0;
     st.honor = (st.honor || 0) + g; st.retires = (st.retires || 0) + 1;
     st.coins = 0; st.stats = { power: 0, contact: 0, speed: 0, fame: 0, eye: 0 };
     st.stadium = 0; st.maxStadium = 0; st.stadiumHR = [0]; st.cleared = [];
@@ -476,7 +476,7 @@
   // 일반 15종(전설까지) 다 모으면 코인 +20%, 신화 3종까지 18종이면 +30%, 한정 4종을 다 모으면 +10% 더
   function dexCoin(st) { const n = dexNormal(st), d = st.dex || {}; return 1 + (n >= 18 ? 0.3 : n >= 15 ? 0.2 : 0) + (LIMITED_KEYS.every((k) => d['sp_' + k]) ? 0.1 : 0); }
   // 앱 보상형 광고: 하루 횟수 (한국 날짜 기준이 아니라 기기 날짜 기준, todayKey와 같음)
-  const AD_LIMIT = { box: 2, gems: 5, ticket: 3, boost: 3, eundo: 3, edestroy: 1, eboost: 2, efree: 3 };
+  const AD_LIMIT = { box: 2, gems: 5, ticket: 3, boost: 3, eundo: 3, edestroy: 1, eboost: 2, efree: 3, gold: 5, att2: 1, mis2: 3, boxagain: 2 };
   function adLeft(st, k) { const d = todayKey(); if (!st.ad || st.ad.d !== d) st.ad = { d, c: {} }; return Math.max(0, AD_LIMIT[k] - (st.ad.c[k] || 0)); }
   function adUse(st, k) { adLeft(st, k); st.ad.c[k] = (st.ad.c[k] || 0) + 1; }
   function seasonOn(now) { return (now || Date.now()) < SEASON_END; }

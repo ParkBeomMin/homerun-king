@@ -54,7 +54,7 @@
     try {
       await A.initialize({ initializeForTesting: AD.test });
       try { const ci = await A.requestConsentInfo(); if (ci && ci.isConsentFormAvailable && ci.status === 'REQUIRED') await A.showConsentForm(); } catch (e) { /* noop */ }
-      adLoad();
+      adLoad(); appBanner();
     } catch (e) { /* noop */ }
   }
   // onReward(): 보상 지급, say(text): 안내 문구 표시. 결과는 Promise<boolean>
@@ -80,6 +80,32 @@
     return got;
   }
 
+  // ---------- 앱: AdMob 하단 배너 ----------
+  // 웹 배너와 같은 자리(#adbar, 50px + 시스템 바)를 비워 두고, 그 위에 네이티브 배너를 띄운다. 더비·보스전에서는 숨긴다
+  const BN = { unit: window.HRK_AD_BANNER || '', shown: false, hidden: false, want: true };
+  function safeBottom() {
+    const d = document.createElement('div');
+    d.style.cssText = 'position:fixed;bottom:0;height:0;padding-bottom:max(env(safe-area-inset-bottom),var(--safe-area-inset-bottom,0px))';
+    document.body.appendChild(d); const v = parseFloat(getComputedStyle(d).paddingBottom) || 0; d.remove(); return Math.round(v);
+  }
+  async function appBanner() {
+    if (!APP || !BN.unit) return;
+    const A = AD.plug || plug('AdMob'); if (!A) return;
+    const app = document.getElementById('app'); if (!app) return;
+    let bar = document.getElementById('adbar');
+    if (!bar) { bar = document.createElement('div'); bar.id = 'adbar'; app.appendChild(bar); }
+    document.body.classList.add('ad-on');
+    if (BN.shown) return; BN.shown = true;
+    try { await A.showBanner({ adId: BN.unit, adSize: 'BANNER', position: 'BOTTOM_CENTER', margin: safeBottom(), isTesting: AD.test }); } catch (e) { BN.shown = false; }
+    if (!BN.want) bannerShow(false);
+  }
+  // 집중 화면(더비·보스)에서는 false 로 숨기고, 끝나면 true 로 다시 보인다
+  function bannerShow(on) {
+    BN.want = on; const A = AD.plug; if (!APP || !A || !BN.shown) return;
+    if (on && BN.hidden) { BN.hidden = false; A.resumeBanner().catch(() => {}); }
+    else if (!on && !BN.hidden) { BN.hidden = true; A.hideBanner().catch(() => {}); }
+  }
+
   // ---------- 앱: 뒤로 가기 ----------
   let backHandler = null;
   function initBack() {
@@ -96,6 +122,7 @@
     adReady: () => AD.ready,
     showReward,
     banner,
+    bannerShow,
     setBack: (fn) => { backHandler = fn; },
   };
   if (APP) {
