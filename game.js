@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const H = window.HR;
-  const VERSION = 'v0.16.1 베타';
+  const VERSION = 'v0.16.2 베타';
   const SAVE_KEY = 'hrk_save_v1';
   const fmt = H.fmt;
   const $ = (id) => document.getElementById(id);
@@ -1626,7 +1626,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     return h;
   }
 
-  function rewardToast(r) { toast(r.text + ' 받았어요'); if (r.bat) setTimeout(() => queueModal(() => revealModal(r.bat, '고급 상자 오픈!')), 200); }
+  function rewardToast(r) { toast(r.text + ' 받았어요'); if (r.bat) setTimeout(() => queueModal(() => revealModal(r.bat, r.bat.sp ? '🎉 한정 방망이 획득!' : '고급 상자 오픈!')), 200); }
   // 세 게임 공용 의견 폼 (스핀 디펜스·라인파티와 같이 씀): 게임·버전·기기 미리 채움
   function feedbackURL() {
     const ua = navigator.userAgent, m = ua.match(/Android [\d.]+;[^)]*/) || ua.match(/iPhone OS [\d_]+|Mac OS X [\d_]+|Windows NT [\d.]+/);
@@ -1638,9 +1638,9 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   function betaHTML() {
     if (!APPX.beta) return '';
     const n = (st.beta && st.beta.n) || 0;
-    let h = `<div class="h">🧪 베타 테스터 보상 <span class="r small" data-notr>${window.HRK_LANG === 'en' ? 'Day ' + n + ' / 14' : window.HRK_LANG === 'ja' ? '参加' + n + '日目 / 14日' : '참여 ' + n + '일째 / 14일'}</span></div><div class="card"><div class="small" style="margin-bottom:6px">테스트에 참여해 주셔서 고마워요! 앱을 연 날이 쌓일 때마다 보상을 드려요. 받은 보상은 정식 출시 뒤에도 그대로 남아요.</div><div class="attrow">`;
+    let h = `<div class="h">🧪 베타 테스터 보상 <span class="r small" data-notr>${window.HRK_LANG === 'en' ? 'Day ' + n + ' / 14' : window.HRK_LANG === 'ja' ? '参加' + n + '日目 / 14日' : '참여 ' + n + '일째 / 14일'}</span></div><div class="card"><div class="small" style="margin-bottom:6px">테스트에 참여해 주셔서 고마워요! 앱을 연 날이 쌓일 때마다 보상을 드려요. 받은 보상은 정식 출시 뒤에도 그대로 남아요. <b style="color:#ff8ab5">7일째엔 한정 방망이 '베타 개척자 배트'!</b></div><div class="attrow">`;
     let k = 0;
-    H.BETA_REW.forEach((b, i) => { const got = st.beta && st.beta.got[i], can = H.betaCan(st, i); if (can) k++; h += `<div class="attd ${got ? 'got' : can ? 'now' : ''}"><b>${b.d}일</b><span>${H.rewardText(b.r)}</span>${got ? '<i>✓</i>' : ''}</div>`; });
+    H.BETA_REW.forEach((b, i) => { const got = st.beta && st.beta.got[i], can = H.betaCan(st, i); if (can) k++; h += `<div class="attd ${got ? 'got' : can ? 'now' : ''}"${b.r.t === 'bat' ? ' style="border-color:#ff8ab5;box-shadow:0 0 8px rgba(255,138,181,.5)"' : ''}><b>${b.d}일</b>${b.r.t === 'bat' ? `<span style="color:#ff8ab5">🧪 한정 배트</span><span>+ ◆ ${b.r.gems}</span>` : `<span>${H.rewardText(b.r)}</span>`}${got ? '<i>✓</i>' : ''}</div>`; });
     return h + `</div><button class="btn big green" data-beta="all" ${k ? '' : 'disabled'}>${k ? '베타 보상 받기 (' + k + '개)' : '다음 보상은 내일 이후에 열려요'}</button><div style="display:flex;margin-top:6px">${fbBtn('sm gray" style="flex:1;text-decoration:none;text-align:center')}</div></div>`;
   }
   function renderMission() {
@@ -2330,7 +2330,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   if (!st.nick) { st.nick = genNick(); save(); }
   applyLayout(); resize(); syncAuto(); syncHaptic(); startPitch();
   const appGift = APPX.app ? H.grantLimited(st, 'app') : null; if (appGift) save();
-  const betaGift = APPX.beta ? H.grantLimited(st, 'beta') : null; if (APPX.beta) { H.betaTick(st); save(); }
+  const betaGift = null; if (APPX.beta) { H.betaTick(st); save(); } // 베타 개척자 배트는 베타 보상 7일차로 옮김
   APPX.setBack(() => { if (!modal.classList.contains('hidden')) { closeModal(); return true; } if (title.style.display !== 'none') return false; return false; });
   if (!st.tutorial) $('tapHint').style.display = 'none';
   updateHUD(); renderPanel();

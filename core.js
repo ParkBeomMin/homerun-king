@@ -31,7 +31,7 @@
     derby: { name: '더비 챔피언 배트', g: 3, t: 'power', t2: 'luck', how: '홈런 더비 7개 이상 (랭킹 도전)' },
     season: { name: '개막 시즌 배트', g: 2, t: 'contact', t2: 'luck', how: '개막 이벤트 기간 출석 3회 (12/4까지)' },
     app: { name: '앱 스타 배트', g: 3, t: 'power', t2: 'contact', how: '안드로이드 앱에서 처음 시작하면 선물' },
-    beta: { name: '베타 개척자 배트', g: 4, t: 'power', t2: 'luck', how: '안드로이드 앱 베타 테스트 참여' },
+    beta: { name: '베타 개척자 배트', g: 4, t: 'power', t2: 'luck', how: '안드로이드 앱 베타 테스트 7일 참여' },
   };
   const LIMITED_KEYS = ['boss', 'derby', 'season', 'app', 'beta'];
   const SEASON_END = Date.UTC(2026, 11, 4, 15, 0, 0); // 2026-12-05 00:00 KST 전까지
@@ -549,7 +549,7 @@
   const DAILY_ALL = { t: 'gems', n: 30 };
   // 앱 베타 테스트 보상: 베타 앱을 연 날 수(하루 1번)로 쌓인다. 1일차는 베타 개척자 배트(앱 시작 때 지급)
   const BETA_REW = [
-    { d: 1, r: { t: 'gems', n: 100 } }, { d: 3, r: { t: 'box', n: 1, gems: 50 } }, { d: 7, r: { t: 'gems', n: 300 } },
+    { d: 1, r: { t: 'gems', n: 100 } }, { d: 3, r: { t: 'box', n: 1, gems: 50 } }, { d: 7, r: { t: 'bat', sp: 'beta', gems: 300 } },
     { d: 10, r: { t: 'tickets', n: 5 } }, { d: 14, r: { t: 'box', n: 1, gems: 500 } },
   ];
   function betaTick(st, now) { st.beta = st.beta || { n: 0, last: '', got: {} }; const d = todayKey(now); if (st.beta.last !== d) { st.beta.last = d; st.beta.n++; return true; } return false; }
@@ -592,12 +592,19 @@
     if (r.t === 'tickets') return '보호권 ' + r.n;
     if (r.t === 'coins') return '코인 ' + Math.round(r.sec / 60) + '분치';
     if (r.t === 'box') return '고급 상자 + ◆ ' + r.gems;
+    if (r.t === 'bat') return LIMITED[r.sp].name + ' + ◆ ' + r.gems;
     return '';
   }
   function grant(st, r) {
     if (r.t === 'gems') { st.gems += r.n; return { text: '◆ 젬 +' + r.n }; }
     if (r.t === 'tickets') { st.tickets += r.n; return { text: '강화 보호권 +' + r.n }; }
     if (r.t === 'coins') { const c = Math.max(100, Math.floor(expectedCPS(st, 150) * r.sec)); st.coins += c; return { text: '₩ ' + fmt(c), coins: c }; }
+    // 한정 방망이 보상 (이미 있으면 고급 상자로 대신)
+    if (r.t === 'bat') {
+      const b = grantLimited(st, r.sp); st.gems += r.gems || 0;
+      if (b) return { text: LIMITED[r.sp].name + ' + ◆ ' + (r.gems || 0), bat: b };
+      const bx = grant(st, { t: 'box', n: 1, gems: 0 }); return { text: '고급 상자 + ◆ ' + (r.gems || 0), bat: bx.bat };
+    }
     if (r.t === 'box') {
       st.gems += r.gems || 0;
       if (st.bats.length >= INV_MAX) { st.gems += PREMIUM_GEMS; return { text: '가방이 가득 차서 ◆ ' + (PREMIUM_GEMS + (r.gems || 0)) }; }
