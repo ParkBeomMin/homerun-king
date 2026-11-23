@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const H = window.HR;
-  const VERSION = 'v0.15.2 베타';
+  const VERSION = 'v0.15.3 베타';
   const SAVE_KEY = 'hrk_save_v1';
   const fmt = H.fmt;
   const $ = (id) => document.getElementById(id);
@@ -1638,7 +1638,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
   function betaHTML() {
     if (!APPX.beta) return '';
     const n = (st.beta && st.beta.n) || 0;
-    let h = `<div class="h">🧪 베타 테스터 보상 <span class="r small">참여 ${n}일째 / 14일</span></div><div class="card"><div class="small" style="margin-bottom:6px">테스트에 참여해 주셔서 고마워요! 앱을 연 날이 쌓일 때마다 보상을 드려요. 받은 보상은 정식 출시 뒤에도 그대로 남아요.</div><div class="attrow">`;
+    let h = `<div class="h">🧪 베타 테스터 보상 <span class="r small" data-notr>${window.HRK_LANG === 'en' ? 'Day ' + n + ' / 14' : window.HRK_LANG === 'ja' ? '参加' + n + '日目 / 14日' : '참여 ' + n + '일째 / 14일'}</span></div><div class="card"><div class="small" style="margin-bottom:6px">테스트에 참여해 주셔서 고마워요! 앱을 연 날이 쌓일 때마다 보상을 드려요. 받은 보상은 정식 출시 뒤에도 그대로 남아요.</div><div class="attrow">`;
     let k = 0;
     H.BETA_REW.forEach((b, i) => { const got = st.beta && st.beta.got[i], can = H.betaCan(st, i); if (can) k++; h += `<div class="attd ${got ? 'got' : can ? 'now' : ''}"><b>${b.d}일</b><span>${H.rewardText(b.r)}</span>${got ? '<i>✓</i>' : ''}</div>`; });
     return h + `</div><button class="btn big green" data-beta="all" ${k ? '' : 'disabled'}>${k ? '베타 보상 받기 (' + k + '개)' : '다음 보상은 내일 이후에 열려요'}</button><div style="display:flex;margin-top:6px">${fbBtn('sm gray" style="flex:1;text-decoration:none;text-align:center')}</div></div>`;
