@@ -28,7 +28,7 @@
   // 한정 방망이: 합성·판매 불가, 특성 2개. g는 기본 파워·강화 비용 기준 등급
   const LIMITED = {
     boss: { name: '보스 사냥꾼 배트', g: 4, t: 'power', t2: 'contact', how: '10구장 보스 첫 격파' },
-    derby: { name: '더비 챔피언 배트', g: 3, t: 'power', t2: 'luck', how: '홈런 더비 7개 이상 (랭킹 도전)' },
+    derby: { name: '더비 챔피언 배트', g: 3, t: 'power', t2: 'luck', how: '주간 홈런 더비 랭킹 1위' },
     season: { name: '개막 시즌 배트', g: 2, t: 'contact', t2: 'luck', how: '개막 이벤트 기간 출석 3회 (12/4까지)' },
     app: { name: '앱 스타 배트', g: 3, t: 'power', t2: 'contact', how: '안드로이드 앱에서 처음 시작하면 선물' },
     beta: { name: '베타 개척자 배트', g: 4, t: 'power', t2: 'luck', how: '안드로이드 앱 베타 테스트 14일 참여' },
@@ -532,7 +532,21 @@
   function derbyAddAd(st, now) { if (derbyAdLeft(st, now) <= 0) return false; derbyT(st, now).ad++; return true; }
   function derbyScore(hr, distm) { return hr * 1e9 + Math.min(999999999, Math.max(0, Math.round(distm))); }
   const DERBY_BAT_HR = 7;
-  function derbyReward(st, hr) { const gems = hr * 3; const c = Math.max(50, Math.floor(expectedCPS(st, 150) * hr * 60)); st.gems += gems; st.coins += c; const bat = hr >= DERBY_BAT_HR ? grantLimited(st, 'derby') : null; return { gems, coins: c, bat }; }
+  function derbyReward(st, hr) { const gems = hr * 3; const c = Math.max(50, Math.floor(expectedCPS(st, 150) * hr * 60)); st.gems += gems; st.coins += c; return { gems, coins: c, bat: null }; }
+  // 주간 랭킹 보상: 새 주에 처음 켤 때 지난주 순위로 한 번 지급 (1위는 더비 챔피언 배트, 이미 있으면 ◆1,000)
+  const WEEK_REW = [
+    { to: 1, gems: 500, sec: 7200, bat: true }, { to: 2, gems: 300, sec: 3600 }, { to: 3, gems: 200, sec: 3600 },
+    { to: 10, gems: 100, sec: 1800 }, { to: Infinity, gems: 30, sec: 600 },
+  ];
+  function prevWeekKey(now) { return weekKey((now || Date.now()) - 7 * 864e5); }
+  function weekRewOf(rank) { return WEEK_REW.find((w) => rank <= w.to); }
+  function grantWeek(st, rank) {
+    const w = weekRewOf(rank), coins = Math.max(100, Math.floor(expectedCPS(st, 150) * w.sec));
+    let gems = w.gems, bat = null;
+    if (w.bat) { bat = grantLimited(st, 'derby'); if (!bat) gems += 1000; }
+    st.gems += gems; st.coins += coins;
+    return { gems, coins, bat, sec: w.sec };
+  }
 
   // ---------- 출석, 일일 미션, 업적 ----------
   function todayKey(d) { d = d || new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
@@ -665,7 +679,7 @@
     equipped, fenceOf, coinMultOf, resistOf, honorMult, canRetire, honorGain, retire, fmtDist, OUT_START, RETIRE_AT, HONOR_PCT, perfectWindow, goodWindow, weakWindow, autoPerfect, rollAutoQuality, specialChance,
     hitResult, cycleTime, takeTime, expectedCPS, simAuto, genPitch, swingOutcome, autoDecide, hitBonus, callPitch, resetCount, eyeOf, eyeRate, ballChance, edgeDist, PITCH_T, homerunRate, tryEnhance, removeBat, bestBat, woodPrice, normalBoxPrice, buy,
     mergeCandidates, merge, sell, applyHit, moveStadium, offlineReward, fmt,
-    PITCH_TYPES, pitchTypesFor, BETA_REW, betaTick, betaCan, claimBeta, AD_LIMIT, adLeft, adUse, LIMITED, LIMITED_KEYS, DEX_TOTAL, DERBY_BAT_HR, hasT, batKey, traitName, traitShort, traitDesc, hasLimited, grantLimited, seasonOn, dexNormal, markDex, dexRows, dexCount, dexMult, dexCoin, isWeekend, BOSSES, BOSS_HR, BOSS_OUTS, PITCHERS, pitcherOf, avgKmh, bossOpen, bossReward, winBoss, DERBY_N, weekKey, DERBY_FREE, DERBY_AD, derbyLeft, derbyUse, derbyAdLeft, derbyAddAd, derbyCanRank, derbyScore, derbyReward,
+    PITCH_TYPES, pitchTypesFor, BETA_REW, betaTick, betaCan, claimBeta, AD_LIMIT, adLeft, adUse, LIMITED, LIMITED_KEYS, DEX_TOTAL, DERBY_BAT_HR, WEEK_REW, prevWeekKey, weekRewOf, grantWeek, hasT, batKey, traitName, traitShort, traitDesc, hasLimited, grantLimited, seasonOn, dexNormal, markDex, dexRows, dexCount, dexMult, dexCoin, isWeekend, BOSSES, BOSS_HR, BOSS_OUTS, PITCHERS, pitcherOf, avgKmh, bossOpen, bossReward, winBoss, DERBY_N, weekKey, DERBY_FREE, DERBY_AD, derbyLeft, derbyUse, derbyAdLeft, derbyAddAd, derbyCanRank, derbyScore, derbyReward,
     todayKey, ATT, DAILY, DAILY_ALL, ACH, daily, bump, rewardText, grant, attCan, attDay, claimAtt, dailyDone, claimDaily, claimDailyAll, achReady, claimAch, claimableCount,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

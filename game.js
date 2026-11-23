@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const H = window.HR;
-  const VERSION = 'v0.16.3 베타';
+  const VERSION = 'v0.17 베타';
   const SAVE_KEY = 'hrk_save_v1';
   const fmt = H.fmt;
   const $ = (id) => document.getElementById(id);
@@ -250,7 +250,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     const can = H.derbyCanRank(st), left = H.derbyLeft(st), me = lobbyRank && lobbyRank.findIndex((r) => r.id === st.devId);
     const list = lobbyRank == null ? '<p class="small" style="text-align:center">불러오는 중...</p>'
       : lobbyRank === false ? '<p class="small" style="text-align:center">지금은 랭킹을 불러올 수 없어요.</p>'
-      : lobbyRank.length ? lobbyRank.map((r, i) => `<div class="ir ${r.id === st.devId ? 'me' : ''}"><span>${i < 3 ? ['🥇', '🥈', '🥉'][i] : (i + 1) + '.'} <span data-notr>${esc(r.name)}</span></span><b>홈런 ${r.hr} · ${H.fmtDist(r.distm)}</b></div>`).join('')
+      : lobbyRank.length ? lobbyRank.map((r, i) => `<div class="ir ${r.id === st.devId ? 'me' : ''}"><span>${i < 3 ? ['🥇', '🥈', '🥉'][i] : (i + 1) + '.'} ${st.champ && st.champ.wk === H.prevWeekKey() && st.champ.id === r.id ? '<span title="지난주 1위">👑</span>' : ''}<span data-notr>${esc(r.name)}</span></span><b>홈런 ${r.hr} · ${H.fmtDist(r.distm)}</b></div>`).join('')
       : '<p class="small" style="text-align:center">아직 기록이 없어요. 첫 1등이 되어보세요!</p>';
     return `<div class="dtop"><h2>⚾ 홈런 더비</h2><button class="btn sm gray" id="dlBack">✕ 나가기</button></div>
       <div class="dsub">스트라이크만 오는 10구 승부 · 도전권 하루 ${H.DERBY_FREE}장 · 이번 주 최고 기록만 랭킹에 남아요 · ${H.weekKey()} (월요일 초기화)</div>
@@ -260,7 +260,10 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       <div class="dbtns">${can ? `<button class="btn big" id="dlRanked">🏆 랭킹 도전 (도전권 1장)</button>` : `<div class="small" style="text-align:center">오늘 도전권을 다 썼어요. 자정에 ${H.DERBY_FREE}장이 다시 생겨요</div>`}
       ${APPX.adOn() && H.derbyAdLeft(st) > 0 ? '<button class="btn big green" id="dlAd">📺 광고 보고 도전권 +1</button>' : ''}
       <button class="btn big ${can ? 'blue' : ''}" id="dlPractice">⚾ 연습하기 (기록·보상 없음)</button>
-      ${!H.hasLimited(st, 'derby') ? `<div class="small" style="text-align:center">랭킹 도전에서 ${H.DERBY_BAT_HR}개 이상 치면 한정 방망이 '더비 챔피언 배트'!</div>` : ''}</div>`;
+      <div class="wrew"><div class="small" style="text-align:center;color:#ffd84a">🏆 주간 순위 보상 (다음 주에 처음 켤 때 지급)</div>
+        <div class="ir"><span>🥇 1위</span><b>더비 챔피언 배트 + ◆ 500 + 코인 2시간치</b></div>
+        <div class="ir"><span>🥈 2위</span><b>◆ 300 + 코인 1시간치</b></div><div class="ir"><span>🥉 3위</span><b>◆ 200 + 코인 1시간치</b></div>
+        <div class="ir"><span>4~10위</span><b>◆ 100 + 코인 30분치</b></div><div class="ir"><span>참가상</span><b>◆ 30 + 코인 10분치</b></div></div></div>`;
   }
   function renderLobby() {
     lobby.innerHTML = lobbyHTML();
@@ -2101,13 +2104,33 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     const res = await fetch(`${FSR}/hrk_rank/${wk}/scores/${st.devId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     return res.ok ? 'ok' : res.status === 403 ? 'lower' : 'fail'; // 403 = 이번 주 기록이 더 높음
   }
-  async function loadRank() {
-    const wk = H.weekKey();
-    const q = { structuredQuery: { from: [{ collectionId: 'scores' }], orderBy: [{ field: { fieldPath: 'score' }, direction: 'DESCENDING' }], limit: 20 } };
+  async function loadRank(wk, limit) {
+    wk = wk || H.weekKey();
+    const q = { structuredQuery: { from: [{ collectionId: 'scores' }], orderBy: [{ field: { fieldPath: 'score' }, direction: 'DESCENDING' }], limit: limit || 20 } };
     const res = await fetch(`${FSR}/hrk_rank/${wk}:runQuery`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(q) });
     if (!res.ok) throw new Error('rank ' + res.status);
     const rows = await res.json();
     return rows.filter((r) => r.document).map((r) => { const f = r.document.fields; return { id: r.document.name.split('/').pop(), name: f.name.stringValue, hr: +f.hr.integerValue, distm: +f.distm.integerValue }; });
+  }
+  // 새 주 첫 실행: 지난주 랭킹에서 내 순위를 찾아 보상 (한 주에 한 번, 실패하면 다음 실행 때 다시)
+  async function weeklySettle() {
+    const wk = H.prevWeekKey(); if (st.weekRew === wk || !st.devId) return;
+    let rows; try { rows = await loadRank(wk, 300); } catch (e) { return; }
+    st.champ = rows[0] ? { wk, id: rows[0].id, name: rows[0].name } : { wk, id: '' };
+    let idx = rows.findIndex((r) => r.id === st.devId), me = idx >= 0 ? rows[idx] : null, rank = idx + 1;
+    if (!me && rows.length >= 300) {
+      try { const r = await fetch(`${FSR}/hrk_rank/${wk}/scores/${st.devId}`); if (r.ok) { const f = (await r.json()).fields; me = { hr: +f.hr.integerValue }; rank = 301; } } catch (e) { return; }
+    }
+    st.weekRew = wk;
+    if (!me || me.hr < 1) { save(); return; }
+    const g = H.grantWeek(st, rank); save(); updateHUD(); track('week_reward', { rank, wk });
+    queueModal(() => {
+      SFX.success(); if (rank <= 3) confetti();
+      openModal(`<h2>🏆 지난주 홈런 더비 결과</h2><div class="res" style="color:#ffd84a">${rank <= 300 ? `<span data-notr>${window.HRK_LANG === 'en' ? '#' + rank : window.HRK_LANG === 'ja' ? rank + '位' : rank + '위'}</span>` : '참가상'}</div><p data-notr>${window.HRK_LANG === 'en' ? me.hr + ' homers' : window.HRK_LANG === 'ja' ? 'ホームラン' + me.hr + '本' : '홈런 ' + me.hr + '개 기록'}</p>
+        <p>보상 ${g.bat ? '더비 챔피언 배트 + ' : ''}◆ ${fmt(g.gems)} · ₩ ${fmt(g.coins)}</p>${rank === 1 ? '<p class="small" style="color:#ffd84a">이번 주 랭킹에서 닉네임 옆에 👑가 붙어요</p>' : ''}
+        <div class="mbtns"><button class="btn big" data-close>받기</button></div>`);
+      if (g.bat) queueModal(() => revealModal(g.bat, '🏆 한정 방망이 획득!'));
+    });
   }
   async function rankModal() {
     openModal('<h2>🏆 이번 주 홈런 더비 랭킹</h2><p>불러오는 중...</p>');
@@ -2130,7 +2153,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     SFX.success(); if (D.hr >= 5) confetti();
     track('derby_end', { hr: D.hr, ranked: D.ranked ? 1 : 0 });
     openModal(`<h2>⚾ 홈런 더비 결과</h2><div class="res" style="color:#ffd84a">홈런 ${D.hr} / ${H.DERBY_N}</div><p>가장 멀리: ${H.fmtDist(D.best)}</p>
-      ${rew ? `<p>보상 ◆ ${rew.gems} · ₩ ${fmt(rew.coins)}</p>` : '<p class="small">연습 기록은 랭킹에 올라가지 않아요</p>'}${rew && !rew.bat && !H.hasLimited(st, 'derby') ? `<p class="small">랭킹 도전에서 ${H.DERBY_BAT_HR}개 이상 치면 한정 방망이!</p>` : ''}
+      ${rew ? `<p>보상 ◆ ${rew.gems} · ₩ ${fmt(rew.coins)}</p>` : '<p class="small">연습 기록은 랭킹에 올라가지 않아요</p>'}
       ${D.ranked ? `<p class="small" id="rkStat" style="color:#9fd0ff">🏆 랭킹 등록 중...</p>` : ''}
       <div class="mbtns"><button class="btn gray" id="toLobby">더비 대기실로</button>${D.ranked ? '<button class="btn" id="sendRank" style="display:none">다시 등록</button>' : '<button class="btn blue" id="againPr">한 번 더 연습</button>'}</div>${D.ranked && H.derbyCanRank(st) ? `<button class="btn blue" id="againRk" style="width:100%;margin-top:8px">🎟 한 번 더 도전 (남은 도전권 ${H.derbyLeft(st)}장)</button>` : ''}`);
     $('toLobby').onclick = () => { closeModal(); openLobby(); };
@@ -2352,6 +2375,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     BGM.start(); VOICE.load(); startIntro();
     if (!gifts.length && !st.layoutAsked && (st.tut == null || st.tut >= TUT.length)) queueModal(layoutAsk);
     if (APPX.promoOn() && st.promoDay !== H.todayKey() && (st.totalHits || 0) >= 30) queueModal(appPromoModal);
+    weeklySettle();
     track('title_start', {});
   });
   track('game_start', { returning: had ? 1 : 0 });
