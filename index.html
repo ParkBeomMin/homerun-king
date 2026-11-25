@@ -169,7 +169,7 @@ html,body{margin:0;height:100%;background:#071629;color:var(--txt);font-family:'
 #app.swap #fieldWrap{order:4;margin-bottom:env(safe-area-inset-bottom)}
 #app.swap{background:#071629}
 #swapBtn{padding:6px 10px;font-size:16px;line-height:1;background:#2b5a8f}
-#adbar{order:9;flex:0 0 auto;display:flex;justify-content:center;align-items:center;min-height:50px;background:#050f1e;padding-bottom:env(safe-area-inset-bottom)}
+#adbar{order:9;flex:0 0 auto;display:flex;justify-content:center;align-items:center;min-height:calc(50px + env(safe-area-inset-bottom));background:#050f1e;padding-bottom:env(safe-area-inset-bottom)}
 #goldBall{position:absolute;right:-60px;width:44px;height:44px;z-index:6;cursor:pointer;animation:goldFly 9s linear forwards;touch-action:none}
 #goldBall i{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff7c2,#ffd84a 40%,#e09a10 75%,#9a5a00);box-shadow:0 0 18px 6px rgba(255,216,74,.75);animation:goldBob .7s ease-in-out infinite alternate}
 #goldBall b{position:absolute;right:-10px;top:-12px;font-size:20px;animation:goldBob .5s ease-in-out infinite alternate-reverse}
@@ -177,7 +177,7 @@ html,body{margin:0;height:100%;background:#071629;color:var(--txt);font-family:'
 @keyframes goldBob{from{translate:0 -6px}to{translate:0 6px}}
 html.in-app body.ad-on #tabs{padding-bottom:0}
 html.in-app body.ad-on #app.swap #fieldWrap{margin-bottom:0}
-html.in-app #adbar{padding-bottom:max(env(safe-area-inset-bottom),var(--safe-area-inset-bottom,0px))}
+html.in-app #adbar{padding-bottom:max(env(safe-area-inset-bottom),var(--safe-area-inset-bottom,0px));min-height:calc(50px + max(env(safe-area-inset-bottom),var(--safe-area-inset-bottom,0px)))}
 .wrew{margin-top:6px;background:rgba(255,255,255,.05);border-radius:10px;padding:6px 8px}.wrew .ir{font-size:13px;padding:3px 0}
 #adbar .ad-ph{width:320px;height:50px;display:flex;align-items:center;justify-content:center;border:1px dashed #3d5f8f;color:#6f8bb3;font-size:12px}
 body.ad-on #tabs{padding-bottom:0}
@@ -270,9 +270,9 @@ window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(argu
 <div id="title"><div class="tlogo"><img id="tEmblem" src="assets/ui/emblem.webp" alt="" onerror="this.style.display='none'"><h1>홈런왕<br><span>키우기</span></h1></div><div class="ttap">화면을 탭해서 시작</div><div class="tver" id="tVer"></div></div>
 <div id="derbyLobby"></div>
 <div id="modal" class="hidden"></div>
-<script src="i18n.js?v=0.18.3"></script>
-<script src="app.js?v=0.18.3"></script>
-<script src="core.js?v=0.18.3"></script>
-<script src="game.js?v=0.18.3"></script>
+<script src="i18n.js?v=0.18.4"></script>
+<script src="app.js?v=0.18.4"></script>
+<script src="core.js?v=0.18.4"></script>
+<script src="game.js?v=0.18.4"></script>
 </body>
 </html>
