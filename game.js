@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const H = window.HR;
-  const VERSION = 'v0.18.1 베타';
+  const VERSION = 'v0.18.3 베타';
   const SAVE_KEY = 'hrk_save_v1';
   const fmt = H.fmt;
   const $ = (id) => document.getElementById(id);
@@ -317,7 +317,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
       if (o.hit) { if (o.hit.hr) D.hr++; if (o.hit.d > D.best) D.best = o.hit.d; }
       D.res.push(!!(o.hit && o.hit.hr));
       if (D.timed) {
-        if (o.hit && o.hit.hr) { D.streak++; if (D.streak % H.DERBY_BONUS_N === 0 && (D.bonus || 0) < H.DERBY_BONUS_MAX) { D.bonus = (D.bonus || 0) + H.DERBY_BONUS; D.end += H.DERBY_BONUS; popText('+' + H.DERBY_BONUS + '초!', '#7fffd4', 34, true, 0.2); SFX.up(); } } else D.streak = 0;
+        if (o.hit && o.hit.hr) { D.streak++; if (D.streak % H.DERBY_BONUS_N === 0 && (D.bonus || 0) < H.DERBY_BONUS_MAX) { D.bonus = (D.bonus || 0) + H.DERBY_BONUS; D.end += H.DERBY_BONUS; popText('+' + H.DERBY_BONUS + '초!', '#7fffd4', 30, false, 0.62); SFX.up(); } } else D.streak = 0;
         derbyHud(); if (nowS() >= D.end) finishDerby();
       } else { derbyHud(); if (D.n >= H.DERBY_N) finishDerby(); }
     } else if (G.mode === 'boss') {
