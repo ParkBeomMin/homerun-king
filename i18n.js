@@ -308,6 +308,8 @@
     ['60초 타임어택! 홈런 3개 연속이면 +3초', '60-second time attack! 3 homers in a row = +3s', '60秒タイムアタック！3連続ホームランで+3秒'], ['연습 모드 · 60초 타임어택', 'Practice · 60-second time attack', '練習モード・60秒タイムアタック'],
     ['⏱ 60초 더비', '⏱ 60s Derby', '⏱ 60秒ダービー'], ['연속', ' in a row', '連続'], ['⏱ 60초 타임어택', '⏱ 60-second time attack', '⏱ 60秒タイムアタック'], ['60초 더비 홈런 15개 이상', '15+ homers in a 60s Derby', '60秒ダービーでホームラン15本以上'], ['60초 더비 홈런 30개', '30 homers in a 60s Derby', '60秒ダービーでホームラン30本'],
     ['초', 's', '秒'], ['오늘 도전권', "Today's tickets:", '今日のチケット'],
+    ['🆕 새 버전이 있어요', '🆕 A new version is available', '🆕 新しいバージョンがあります'], ['업데이트하면 새 기능과 수정 사항을 바로 쓸 수 있어요.', 'Update to get the latest features and fixes.', 'アップデートすると新機能や修正をすぐ使えます。'],
+    ['진행 상황은 그대로 이어져요', 'Your progress is kept', '進行状況はそのまま引き継がれます'], ['나중에', 'Later', 'あとで'], ['업데이트', 'Update', 'アップデート'],
     ['내 닉네임', 'My nickname', 'ニックネーム'], ['✏️ 바꾸기', '✏️ Edit', '✏️ 変更'], ['✏️ 닉네임', '✏️ Nickname', '✏️ ニックネーム'], ['랭킹에 보이는 이름이에요 (10자)', 'Shown on the ranking (10 chars)', 'ランキングに表示される名前です（10文字）'],
 
     ['다음 보상은 내일 이후에 열려요', 'Next reward unlocks on a later day', '次の報酬は明日以降に開きます'], ['베타 보상 받기', 'Claim beta rewards', 'ベータ報酬を受け取る'],

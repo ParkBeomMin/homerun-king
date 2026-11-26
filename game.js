@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const H = window.HR;
-  const VERSION = 'v0.18.4 베타';
+  const VERSION = 'v0.18.5 베타';
   const SAVE_KEY = 'hrk_save_v1';
   const fmt = H.fmt;
   const $ = (id) => document.getElementById(id);
@@ -2127,6 +2127,17 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     const rows = await res.json();
     return rows.filter((r) => r.document).map((r) => { const f = r.document.fields; return { id: r.document.name.split('/').pop(), name: f.name.stringValue, hr: +f.hr.integerValue, distm: +f.distm.integerValue }; });
   }
+  // 앱 업데이트 알림: 새 버전이 있으면 한 번 안내 (경기 중이거나 다른 창이 열려 있으면 8초 뒤 다시, 최대 5번)
+  let updTry = 0, updInfo = null;
+  async function checkAppUpdate() {
+    if (!APPX.app || !APPX.updateInfo) return;
+    if (!updInfo) { updInfo = await APPX.updateInfo(); if (!updInfo) return; }
+    if (G.mode !== 'normal' || lobby.classList.contains('on') || !modal.classList.contains('hidden')) { if (++updTry <= 5) setTimeout(checkAppUpdate, 8000); return; }
+    track('app_update_prompt', {});
+    openModal(`<h2>🆕 새 버전이 있어요</h2><p>업데이트하면 새 기능과 수정 사항을 바로 쓸 수 있어요.<br><span class="small">진행 상황은 그대로 이어져요</span></p>
+      <div class="mbtns"><button class="btn gray" data-close>나중에</button><button class="btn" id="updGo">업데이트</button></div>`);
+    $('updGo').onclick = () => { track('app_update_go', {}); closeModal(); APPX.doUpdate(updInfo); };
+  }
   // 새 주 첫 실행: 지난주 랭킹에서 내 순위를 찾아 보상 (한 주에 한 번, 실패하면 다음 실행 때 다시)
   async function weeklySettle() {
     const wk = H.prevWeekKey(); if (st.weekRew === wk || !st.devId) return;
@@ -2391,6 +2402,7 @@ ${b.e > 0 ? `<text x="78" y="15.5" font-size="8" font-family="Jua,sans-serif" fi
     if (!gifts.length && !st.layoutAsked && (st.tut == null || st.tut >= TUT.length)) queueModal(layoutAsk);
     if (APPX.promoOn() && st.promoDay !== H.todayKey() && (st.totalHits || 0) >= 30) queueModal(appPromoModal);
     weeklySettle();
+    setTimeout(checkAppUpdate, 2500);
     track('title_start', {});
   });
   track('game_start', { returning: had ? 1 : 0 });

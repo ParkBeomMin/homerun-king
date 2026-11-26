@@ -107,6 +107,18 @@
     else if (!on && !BN.hidden) { BN.hidden = true; A.hideBanner().catch(() => {}); }
   }
 
+  // ---------- 앱: Play 인앱 업데이트 확인 (Play에서 설치한 앱만, 실패하면 조용히 무시) ----------
+  async function updateInfo() {
+    if (!APP) return null;
+    const P = plug('AppUpdate'); if (!P) return null;
+    try { const info = await P.getAppUpdateInfo(); return info && info.updateAvailability === 2 ? info : null; } catch (e) { return null; }
+  }
+  async function doUpdate(info) {
+    const P = plug('AppUpdate'); if (!P) return;
+    try { if (info && info.immediateUpdateAllowed) { const r = await P.performImmediateUpdate(); if (r && r.code === 0) return; } } catch (e) { /* noop */ }
+    try { await P.openAppStore(); } catch (e) { /* noop */ }
+  }
+
   // ---------- 앱: 뒤로 가기 ----------
   let backHandler = null;
   function initBack() {
@@ -124,6 +136,8 @@
     showReward,
     banner,
     bannerShow,
+    updateInfo,
+    doUpdate,
     setBack: (fn) => { backHandler = fn; },
   };
   if (APP) {
